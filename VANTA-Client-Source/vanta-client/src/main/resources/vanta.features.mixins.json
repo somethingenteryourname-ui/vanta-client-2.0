@@ -1,0 +1,24 @@
+{
+	"required": false,
+	"package": "vanta.mixin.feature",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"BlockEntityRenderDispatcherMixin",
+		"CameraMixin",
+		"EntityRenderDispatcherMixin",
+		"FramerateLimitTrackerMixin",
+		"GameRendererMixin",
+		"GuiMixin",
+		"LevelRendererMixin",
+		"LightTextureMixin",
+		"MouseHandlerMixin",
+		"ParticleEngineMixin",
+		"ScreenEffectRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
