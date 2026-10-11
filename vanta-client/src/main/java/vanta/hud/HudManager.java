@@ -1,0 +1,98 @@
+package vanta.hud;
+
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.debug.DebugScreenEntries;
+import net.minecraft.resources.Identifier;
+
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+
+import vanta.crosshair.CrosshairRenderer;
+import vanta.metrics.InputStats;
+import vanta.modules.ModuleRegistry;
+import vanta.modules.impl.HudTweaksModule;
+
+/**
+ * Draws enabled HUD widgets through Fabric's HUD element API (below chat, above the
+ * hotbar), and wraps a few vanilla HUD elements for the crosshair and HUD Tweaks.
+ * Each wrapper calls the original element whenever VANTA has nothing to change.
+ */
+public final class HudManager {
+	public static final Identifier HUD_ID = Identifier.fromNamespaceAndPath("vanta", "hud");
+
+	private HudManager() {
+	}
+
+	public static void register() {
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, HUD_ID, HudManager::render);
+		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, HudManager::crosshair);
+		HudElementRegistry.replaceElement(VanillaHudElements.BOSS_BAR, original -> scaled(original, Anchor.TOP_CENTER, HudTweaksModule::bossBarScale));
+		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, original -> scaled(original, Anchor.RIGHT_MIDDLE, HudTweaksModule::scoreboardScale));
+		HudElementRegistry.replaceElement(VanillaHudElements.TITLE_AND_SUBTITLE, original -> scaled(original, Anchor.CENTER, HudTweaksModule::titleScale));
+		HudElementRegistry.replaceElement(VanillaHudElements.STATUS_EFFECTS, original -> (g, t) -> {
+			if (!HudTweaksModule.hideEffects()) original.render(g, t);
+		});
+	}
+
+	private enum Anchor { TOP_CENTER, RIGHT_MIDDLE, CENTER }
+
+	private static HudElement scaled(HudElement original, Anchor anchor, java.util.function.Supplier<Float> scale) {
+		return (g, t) -> {
+			float s = scale.get();
+			if (s == 1f) {
+				original.render(g, t);
+				return;
+			}
+			if (s <= 0f) return;
+			float ax, ay;
+			switch (anchor) {
+				case TOP_CENTER -> { ax = g.guiWidth() / 2f; ay = 0f; }
+				case RIGHT_MIDDLE -> { ax = g.guiWidth(); ay = g.guiHeight() / 2f; }
+				default -> { ax = g.guiWidth() / 2f; ay = g.guiHeight() / 2f; }
+			}
+			g.pose().pushMatrix();
+			g.pose().translate(ax, ay);
+			g.pose().scale(s);
+			g.pose().translate(-ax, -ay);
+			original.render(g, t);
+			g.pose().popMatrix();
+		};
+	}
+
+	private static HudElement crosshair(HudElement original) {
+		return (g, t) -> {
+			Minecraft mc = Minecraft.getInstance();
+			var c = ModuleRegistry.CROSSHAIR;
+			boolean custom = c != null && c.isEnabled() && mc.player != null && !mc.player.isSpectator()
+					&& !mc.debugEntries.isCurrentlyEnabled(DebugScreenEntries.THREE_DIMENSIONAL_CROSSHAIR);
+			if (!custom) {
+				original.render(g, t);
+				return;
+			}
+			if (!mc.options.getCameraType().isFirstPerson() && !c.thirdPerson.on()) return;
+			CrosshairRenderer.draw(g, c, g.guiWidth() / 2, g.guiHeight() / 2, false);
+		};
+	}
+
+	private static void render(GuiGraphics g, DeltaTracker tracker) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.options.hideGui || mc.screen instanceof HudEditorScreen) return;
+		int w = g.guiWidth();
+		int h = g.guiHeight();
+		boolean needInput = false;
+		for (HudModule m : ModuleRegistry.hud()) {
+			if (!m.isEnabled()) continue; // hidden widgets are never drawn or updated
+			try {
+				m.render(g, w, h, false);
+			} catch (RuntimeException e) {
+				vanta.client.VantaClient.LOG.error("[VANTA] HUD widget {} failed and was turned off", m.name(), e);
+				m.setEnabled(false);
+			}
+			needInput |= m.needsInputStats();
+		}
+		InputStats.setActive(needInput);
+	}
+}
