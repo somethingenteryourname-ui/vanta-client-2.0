@@ -37,6 +37,15 @@ public final class TotemTracker {
 		}
 	}
 
+	/** Forget every count (shown as nothing until someone pops again). */
+	public static void resetAll() {
+		POPS.clear();
+	}
+
+	public static boolean reset(UUID id) {
+		return POPS.remove(id) != null;
+	}
+
 	public static int pops(UUID id) {
 		return POPS.getOrDefault(id, 0);
 	}

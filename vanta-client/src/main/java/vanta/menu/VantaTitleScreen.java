@@ -688,6 +688,22 @@ public final class VantaTitleScreen extends VantaScreen {
 		int y = 30;
 		drawLogo(g, cx, y, 2f * Theme.headingScale());
 		y += 30;
+		// Credits
+		int cardW = Math.min(260, mainW - 44);
+		int cardH = 22 + 11 * (1 + VantaInfo.HELPERS.length) + 8;
+		Ui.card(g, cx, y, cardW, cardH, false, 0);
+		Ui.rect(g, cx + 8, y + 7, 2, 7, Theme.accent());
+		Ui.text(g, Theme.heading("Credits"), cx + 14, y + 6, Theme.text());
+		int ly = y + 20;
+		Ui.text(g, "Created by", cx + 10, ly, Theme.textDim());
+		Ui.text(g, VantaInfo.CREATOR, cx + 80, ly, Theme.accent());
+		ly += 11;
+		for (int i = 0; i < VantaInfo.HELPERS.length; i++) {
+			Ui.text(g, i == 0 ? "Helpers" : "", cx + 10, ly, Theme.textDim());
+			Ui.text(g, VantaInfo.HELPERS[i], cx + 80, ly, Theme.text());
+			ly += 11;
+		}
+		y += cardH + 8;
 		String[] lines = {
 				"Version " + VantaInfo.vantaVersion() + " for Minecraft " + VantaInfo.minecraftVersion(),
 				"Fabric Loader " + VantaInfo.loaderVersion() + "  -  Fabric API " + VantaInfo.fabricApiVersion(),

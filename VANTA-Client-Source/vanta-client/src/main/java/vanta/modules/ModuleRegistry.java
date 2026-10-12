@@ -61,6 +61,7 @@ public final class ModuleRegistry {
 		add(new ParticlesModule());
 		add(new EntityCullingModule());
 		add(new BackgroundFpsModule());
+		add(new vanta.optimize.OptimizationsModule());
 		// Visuals
 		add(new ZoomModule());
 		add(new FreelookModule());
@@ -85,6 +86,7 @@ public final class ModuleRegistry {
 		add(new CombatCounterWidget());
 		add(new vanta.hud.widgets.ItemCooldownWidget());
 		add(new vanta.modules.impl.TotemPopsModule());
+		add(new vanta.tiers.TierTaggerModule());
 		// HUD
 		add(new FpsWidget());
 		add(new FrameTimeWidget());

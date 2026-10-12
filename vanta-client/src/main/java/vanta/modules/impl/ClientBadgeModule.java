@@ -22,6 +22,8 @@ public final class ClientBadgeModule extends Module {
 			"Put the VANTA logo in front of your own name.", true));
 	public final BoolSetting badgeOthers = setting(new BoolSetting(key("badge_others"), "Logo next to other VANTA players",
 			"Show the logo for other players using VANTA (in nametags and the tab list).", true));
+	public final BoolSetting themedPlate = setting(new BoolSetting(key("themed_plate"), "Themed nametag plate",
+			"VANTA players' nametags get a background tinted with your theme color instead of plain black.", true));
 	public final BoolSetting inTabList = setting(new BoolSetting(key("tab_list"), "Show in tab list", "Logos in the player list too.", true));
 	public final BoolSetting share = setting(new BoolSetting(key("share"), "Let others see I use VANTA",
 			"Tell servers running the VANTA Bridge plugin (and your presence server, if set) that you use VANTA. Off = you still see others.", true));
@@ -56,6 +58,24 @@ public final class ClientBadgeModule extends Module {
 		boolean self = mc.player != null && id.equals(mc.player.getUUID());
 		if (self) return instance.badgeSelf.on();
 		return instance.badgeOthers.on() && VantaUsers.isUser(id);
+	}
+
+	/** Background for a nametag: tinted when it carries the VANTA logo. Keeps the original transparency. */
+	public static int plateColor(net.minecraft.network.chat.Component text, int background) {
+		if (!active() || !instance.themedPlate.on() || background == 0 || text == null) return background;
+		String s = text.getString();
+		boolean isVanta = false;
+		for (int i = 0; i < s.length() && i < 4; i++) {
+			char c = s.charAt(i);
+			if (c >= VantaUsers.GLYPH && c < VantaUsers.GLYPH + 12) {
+				isVanta = true;
+				break;
+			}
+		}
+		if (!isVanta) return background;
+		int alpha = background >>> 24;
+		int tint = vanta.ui.Colors.mix(0xFF000000, vanta.branding.Theme.accent() | 0xFF000000, 0.38f) & 0xFFFFFF;
+		return (Math.min(255, alpha + 40) << 24) | tint;
 	}
 
 	public static boolean inTabList() { return active() && instance.inTabList.on(); }

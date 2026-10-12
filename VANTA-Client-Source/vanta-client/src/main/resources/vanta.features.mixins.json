@@ -14,11 +14,14 @@
 		"DebugScreenOverlayMixin",
 		"DisconnectedScreenAccessor",
 		"EditBoxMixin",
+		"EndCrystalRendererMixin",
 		"EntityRenderDispatcherMixin",
 		"EnvironmentAttributeProbeMixin",
 		"FramerateLimitTrackerMixin",
 		"GameRendererMixin",
 		"GuiMixin",
+		"HideDeadMixin",
+		"InstantSneakMixin",
 		"ItemCooldownsMixin",
 		"ItemEntityRendererMixin",
 		"LevelMixin",
@@ -27,6 +30,7 @@
 		"LightTextureMixin",
 		"LivingEntityRendererMixin",
 		"MouseHandlerMixin",
+		"MultiPlayerGameModeMixin",
 		"NameTagStorageMixin",
 		"OverlayTextureAccessor",
 		"ParticleEngineMixin",
@@ -35,7 +39,8 @@
 		"ProfilerPieChartAccessor",
 		"ScreenEffectRendererMixin",
 		"ScreenMixin",
-		"StringDecomposerMixin"
+		"StringDecomposerMixin",
+		"VantaNameplateMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

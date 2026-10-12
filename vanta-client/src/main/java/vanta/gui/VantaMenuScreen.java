@@ -205,6 +205,7 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 				case PERFORMANCE -> buildPerformance(lb);
 				case VISUALS -> buildVisuals(lb);
 				case HUD -> buildHud(lb);
+				case OPTIMIZATIONS -> buildOptimizations(lb);
 				case CROSSHAIR -> buildCrosshair(lb);
 				case THEME -> buildTheme(lb);
 				case PROFILES -> buildProfiles(lb);
@@ -458,6 +459,27 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		moduleCards(lb, List.of(ModuleRegistry.byId("hud_tweaks")));
 	}
 
+	// ---- Optimizations
+
+	private void buildOptimizations(LayoutBuilder lb) {
+		vanta.optimize.OptimizationsModule o = (vanta.optimize.OptimizationsModule) ModuleRegistry.byId("optimizations");
+		lb.full(new SettingRow(o.enabledSetting(), this), SettingRow.height());
+		section(lb, "PvP", "Faster-feeling crystal and anchor fights and a clearer view");
+		paragraph(lb, "Client-side crystals and anchors remove them on your screen as soon as your hit or click is certain to destroy them, "
+				+ "instead of waiting for your ping. VANTA sends exactly the same packets as vanilla. Some servers don't allow these, so check the rules.",
+				Theme.textFaint());
+		settingRows(lb, List.of(o.crystals, o.anchors, o.staticCrystals, o.noDeathAnimation, o.instantSneak));
+		section(lb, "Smoothness", "Less motion and fewer costly effects");
+		settingRows(lb, List.of(o.noMenuBlur, o.noViewBobbing, o.noHurtTilt, o.freeMemory));
+		section(lb, "Performance modules", "More ways to raise FPS; presets live on the Performance page");
+		List<Module> mods = new ArrayList<>();
+		for (String id : new String[] {"particles", "entity_culling", "background_fps", "screen_effects"}) {
+			Module m = ModuleRegistry.byId(id);
+			if (m != null) mods.add(m);
+		}
+		moduleCards(lb, mods);
+	}
+
 	// ---- Crosshair
 
 	private void buildCrosshair(LayoutBuilder lb) {
@@ -473,6 +495,8 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 			}, "Load the " + p.label() + " crosshair. You can tweak it after."));
 		}
 		lb.row(presets, 80, 18);
+		lb.row(List.of(new BasicItems.ButtonItem("Draw your own", true, () -> minecraft.setScreen(new vanta.crosshair.CrosshairDrawScreen(this, c)),
+				"Paint your crosshair pixel by pixel with mirroring and a live preview.")), 140, 18);
 		section(lb, "Shape and size", null);
 		settingRows(lb, List.of(c.shape, c.size, c.length, c.thickness, c.gap, c.dotSize, c.circleRadius));
 		section(lb, "Color", null);
@@ -651,13 +675,20 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	private void buildAbout(LayoutBuilder lb) {
 		section(lb, Theme.clientName() + " Client", "Version " + VantaInfo.vantaVersion() + " for Minecraft " + VantaInfo.minecraftVersion());
 		statusRows(lb);
+		section(lb, "Credits", null);
+		lb.full(new BasicItems.KeyValueRow("Created by", () -> VantaInfo.CREATOR, Theme.accent()), 13);
+		for (int i = 0; i < VantaInfo.HELPERS.length; i++) {
+			final String h = VantaInfo.HELPERS[i];
+			lb.full(new BasicItems.KeyValueRow(i == 0 ? "Helpers" : "", () -> h, 0), 13);
+		}
 		section(lb, "Privacy", null);
 		paragraph(lb, "VANTA needs no account, sends no telemetry, and stores settings only in your config folder. "
 				+ "The one network request is the optional server region lookup next to your ping: it sends only the server's IP to ipwho.is, "
 				+ "once per server. Turn it off in Settings > Network to stay fully offline.", 0);
 		section(lb, "Fair play", null);
-		paragraph(lb, "VANTA changes what you see and how smoothly the game runs. It never clicks, aims, changes reach, "
-				+ "or removes Minecraft's place/break delays. Reach, combo, CPS and keystrokes only display what already happened.", 0);
+		paragraph(lb, "VANTA never clicks, aims or changes reach, and it sends the same packets as vanilla. Reach, combo, CPS and keystrokes "
+				+ "only display what already happened. The optional client-side crystals and anchors (Optimizations tab, off by default) only "
+				+ "update your screen sooner; some servers don't allow them, so check the rules.", 0);
 		section(lb, "Compatibility", null);
 		if (CompatDetector.detected().isEmpty()) {
 			paragraph(lb, "No known optimization or menu mods detected. VANTA works on its own; Sodium, Lithium and similar mods can be added alongside it.", 0);

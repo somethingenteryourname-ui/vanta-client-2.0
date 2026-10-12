@@ -72,6 +72,7 @@ public final class CrosshairRenderer {
 			case X -> diagonal(g, cx, cy, len, th, gap, color, outline);
 			case PLUS_GAP -> brackets(g, cx, cy, len, th, gap + 2, color, outline);
 			case VANILLA -> g.blitSprite(RenderPipelines.GUI_TEXTURED, VANILLA_SPRITE, cx - 7, cy - 7, 15, 15);
+			case DRAWN -> drawn(g, c.drawn(), cx, cy, color, outline);
 		}
 
 		if (!preview && c.attackIndicator.on() && mc.player != null) {
@@ -81,6 +82,37 @@ public final class CrosshairRenderer {
 				int y = cy + Math.max(len + gap, c.circleRadius.value()) + 5;
 				g.fill(cx - w / 2 - 1, y - 1, cx + w / 2 + 1, y + 2, 0x80000000);
 				g.fill(cx - w / 2, y, cx - w / 2 + Math.round(w * s), y + 1, Colors.withAlpha(color, 1f));
+			}
+		}
+	}
+
+	/** Hand-drawn pixels: all outlines first, then the pixels, so borders never cover pixels. */
+	public static void drawn(GuiGraphics g, CrosshairPixels p, int cx, int cy, int color, int outline) {
+		int n = CrosshairPixels.N, c = CrosshairPixels.C;
+		if (outline != 0) {
+			// one outline pixel per empty cell touching a drawn pixel (no double-dark overlaps)
+			for (int y = -1; y <= n; y++) for (int x = -1; x <= n; x++) {
+				if (p.get(x, y)) continue;
+				boolean edge = false;
+				for (int dy = -1; dy <= 1 && !edge; dy++) for (int dx = -1; dx <= 1; dx++) {
+					if (p.get(x + dx, y + dy)) {
+						edge = true;
+						break;
+					}
+				}
+				if (edge) g.fill(cx + x - c, cy + y - c, cx + x - c + 1, cy + y - c + 1, outline);
+			}
+		}
+		for (int y = 0; y < n; y++) {
+			int x = 0;
+			while (x < n) {
+				if (!p.get(x, y)) {
+					x++;
+					continue;
+				}
+				int start = x;
+				while (x < n && p.get(x, y)) x++;
+				g.fill(cx + start - c, cy + y - c, cx + x - c, cy + y - c + 1, color);
 			}
 		}
 	}

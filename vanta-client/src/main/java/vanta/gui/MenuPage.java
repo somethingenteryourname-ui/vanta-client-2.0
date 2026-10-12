@@ -9,6 +9,7 @@ public enum MenuPage {
 	PERFORMANCE("Performance", "FPS presets, boosters and the settings that matter most", Icons.BOLT),
 	VISUALS("Visuals", "Camera, overlays, outlines, zoom and other visual tweaks", Icons.EYE),
 	HUD("HUD", "Widgets, HUD style and the drag-and-drop editor", Icons.HUD),
+	OPTIMIZATIONS("Optimizations", "Client-side crystals and anchors, PvP clarity and smoothness tweaks", Icons.BOLT),
 	CROSSHAIR("Crosshair", "Design your own crosshair with a live preview", Icons.TARGET),
 	THEME("Theme", "Colors, layout, styles and motion for every VANTA screen", Icons.PALETTE),
 	PROFILES("Profiles", "Save, switch and share complete setups", Icons.PROFILE),

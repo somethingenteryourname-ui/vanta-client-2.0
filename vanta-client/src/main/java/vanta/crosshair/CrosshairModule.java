@@ -9,6 +9,7 @@ import vanta.config.ColorSetting;
 import vanta.config.IntSetting;
 import vanta.config.Labeled;
 import vanta.config.Setting;
+import vanta.config.TextSetting;
 import vanta.modules.Category;
 import vanta.modules.Module;
 
@@ -16,7 +17,7 @@ import vanta.modules.Module;
 public final class CrosshairModule extends Module {
 	public enum Shape implements Labeled {
 		CROSS("Cross"), CROSS_DOT("Cross + dot"), DOT("Dot"), CIRCLE("Circle"), CIRCLE_DOT("Circle + dot"),
-		T_SHAPE("T"), X("X"), PLUS_GAP("Brackets"), VANILLA("Vanilla look");
+		T_SHAPE("T"), X("X"), PLUS_GAP("Brackets"), VANILLA("Vanilla look"), DRAWN("Drawn by you");
 		private final String label;
 		Shape(String label) { this.label = label; }
 		@Override public String label() { return label; }
@@ -44,6 +45,9 @@ public final class CrosshairModule extends Module {
 	public final IntSetting circleRadius = setting(new IntSetting(key("circle_radius"), "Circle size", "Radius of circle shapes.", 5, 2, 24, 1, "px"));
 	public final IntSetting size = setting(new IntSetting(key("size"), "Overall size",
 			"Scales the whole crosshair, including the Vanilla look shape. 100% is normal.", 100, 50, 400, 10, "%"));
+	/** The hand-drawn crosshair (hex bits); edited in the crosshair drawing screen. */
+	public final TextSetting pixels = setting(new TextSetting(key("pixels"), "Drawn crosshair",
+			"Your hand-drawn crosshair. Edit it with Draw your own.", CrosshairPixels.preset("plus").encode(), 200));
 	public final ColorSetting color = setting(new ColorSetting(key("color"), "Color", "Crosshair color. Supports transparency (#AARRGGBB).", 0xFFFFFFFF, true));
 	public final BoolSetting outline = setting(new BoolSetting(key("outline"), "Outline", "Dark border around the lines for visibility.", true));
 	public final ColorSetting outlineColor = setting(new ColorSetting(key("outline_color"), "Outline color", "Color of the border.", 0xB0000000, true));
@@ -54,8 +58,22 @@ public final class CrosshairModule extends Module {
 	public final BoolSetting attackIndicator = setting(new BoolSetting(key("attack_indicator"), "Attack cooldown bar", "Thin bar under the crosshair while your attack recharges.", true));
 	public final BoolSetting thirdPerson = setting(new BoolSetting(key("third_person"), "Show in third person", "Also draw the crosshair in third person.", false));
 
+	private String cachedHex;
+	private CrosshairPixels cachedPixels = new CrosshairPixels();
+
+	/** The drawn crosshair, decoded once per change. */
+	public CrosshairPixels drawn() {
+		String hex = pixels.get();
+		if (!hex.equals(cachedHex)) {
+			cachedHex = hex;
+			cachedPixels = CrosshairPixels.decode(hex);
+		}
+		return cachedPixels;
+	}
+
 	public CrosshairModule() {
-		super("crosshair", "Custom Crosshair", "Your own crosshair: shape, size, gap, colors, outline and presets.", Category.VISUALS, false);
+		super("crosshair", "Custom Crosshair", "Your own crosshair: shape, size, gap, colors, outline, presets, or draw it pixel by pixel.", Category.VISUALS, false);
+		pixels.hidden();
 	}
 
 	/** Setting values for a preset, keyed by setting id. */

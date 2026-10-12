@@ -39,4 +39,8 @@ public final class VantaInfo {
 				.map(m -> m.getVersion().getFriendlyString())
 				.orElse("unknown");
 	}
+
+	/** Credits shown on the About pages and in Mod Menu. */
+	public static final String CREATOR = "itzrealmacer / Joseph";
+	public static final String[] HELPERS = {"jackbest67 / Jack"};
 }

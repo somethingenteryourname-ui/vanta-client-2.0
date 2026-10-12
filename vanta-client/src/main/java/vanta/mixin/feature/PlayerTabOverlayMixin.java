@@ -41,6 +41,9 @@ abstract class PlayerTabOverlayMixin {
 
 	@Inject(method = "getNameForDisplay", at = @At("RETURN"), cancellable = true)
 	private void vanta$badge(PlayerInfo info, CallbackInfoReturnable<Component> cir) {
+		if (vanta.tiers.TierTaggerModule.inTabList() && cir.getReturnValue() != null) {
+			cir.setReturnValue(vanta.tiers.TierTaggerModule.decorate(info.getProfile().id(), info.getProfile().name(), cir.getReturnValue()));
+		}
 		if (ClientBadgeModule.inTabList() && cir.getReturnValue() != null && ClientBadgeModule.badgeFor(info.getProfile().id())) {
 			cir.setReturnValue(VantaUsers.withBadge(cir.getReturnValue()));
 		}

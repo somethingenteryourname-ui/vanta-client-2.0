@@ -7,9 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.Identifier;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -27,11 +25,14 @@ import vanta.modules.impl.ClientBadgeModule;
  * Nothing is guessed: without one of those, only your own badge shows.
  */
 public final class VantaUsers {
-	/** First of 12 private-use characters in the VANTA badge font (assets/vanta/font/badge.json). */
+	/**
+	 * First of 12 private-use characters VANTA adds to Minecraft's default font
+	 * (assets/minecraft/font/default.json adds glyphs, it doesn't replace the font). Being part
+	 * of the normal font, the badge needs no special style, so nothing around it can inherit one.
+	 */
 	public static final char GLYPH = '\uE100';
 	private static final int SHINE_FRAMES = 11;
 	private static final long SHINE_PERIOD = 3600, SHINE_STEP = 75;
-	private static final FontDescription BADGE_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("vanta", "badge"));
 
 	private static final Set<UUID> FROM_SERVER = ConcurrentHashMap.newKeySet();
 	private static final Set<UUID> FROM_PRESENCE = ConcurrentHashMap.newKeySet();
@@ -111,7 +112,7 @@ public final class VantaUsers {
 			if (phase < SHINE_FRAMES * SHINE_STEP) frame = 1 + (int) (phase / SHINE_STEP);
 		}
 		String glyph = String.valueOf((char) (GLYPH + frame));
-		return Component.literal(glyph).withStyle(s -> s.withFont(BADGE_FONT).withColor(rgb));
+		return Component.literal(glyph).withColor(rgb);
 	}
 
 	/**

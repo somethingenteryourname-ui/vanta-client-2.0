@@ -5,7 +5,7 @@
 	"name": "VANTA Client",
 	"description": "A full client experience inside one Fabric mod: launcher-style home screen, RIGHT SHIFT client menu, 50+ modules, FPS presets, HUD and crosshair editors, waypoints, minimap, profiles and a deeply customizable theme. Works alongside Sodium, Iris, Mod Menu and other Fabric mods.",
 	"authors": [
-		"VANTA"
+		"itzrealmacer (Joseph)"
 	],
 	"license": "All-Rights-Reserved",
 	"icon": "assets/vanta/icon.png",
@@ -24,5 +24,8 @@
 		"minecraft": "~1.21.11",
 		"java": ">=21",
 		"fabric-api": "*"
-	}
+	},
+	"contributors": [
+		"jackbest67 (Jack)"
+	]
 }

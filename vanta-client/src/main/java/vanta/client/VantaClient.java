@@ -61,6 +61,11 @@ public final class VantaClient implements ClientModInitializer {
 		vanta.menu.PauseMenuExtras.register();
 		vanta.modules.impl.AutoReconnectModule.register();
 		vanta.social.VantaUsers.init();
+		try {
+			vanta.combat.PopCommands.register();
+		} catch (RuntimeException | LinkageError e) {
+			LOG.warn("[VANTA] Could not register /resetcounter", e);
+		}
 		CompatDetector.scan();
 		ClientTickEvents.END_CLIENT_TICK.register(VantaClient::onTick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ConfigManager.get().saveIfDirty());
