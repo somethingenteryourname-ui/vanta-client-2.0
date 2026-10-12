@@ -22,15 +22,34 @@ import vanta.modules.impl.HudTweaksModule;
  */
 public final class HudManager {
 	public static final Identifier HUD_ID = Identifier.fromNamespaceAndPath("vanta", "hud");
+	public static final Identifier DAMAGE_ID = Identifier.fromNamespaceAndPath("vanta", "damage_indicators");
+	public static final Identifier WAYPOINTS_ID = Identifier.fromNamespaceAndPath("vanta", "waypoints");
 
 	private HudManager() {
 	}
 
 	public static void register() {
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, WAYPOINTS_ID, (g, t) -> {
+			try {
+				vanta.waypoints.WaypointsModule.render(g, t);
+			} catch (RuntimeException e) {
+				vanta.client.VantaClient.LOG.error("[VANTA] Waypoint markers failed and were turned off", e);
+				if (vanta.waypoints.WaypointsModule.get() != null) vanta.waypoints.WaypointsModule.get().setEnabled(false);
+			}
+		});
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, DAMAGE_ID, (g, t) -> {
+			try {
+				vanta.modules.impl.DamageIndicatorsModule.render(g, t);
+			} catch (RuntimeException e) {
+				vanta.client.VantaClient.LOG.error("[VANTA] Damage indicators failed", e);
+			}
+		});
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, HUD_ID, HudManager::render);
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, HudManager::crosshair);
 		HudElementRegistry.replaceElement(VanillaHudElements.BOSS_BAR, original -> scaled(original, Anchor.TOP_CENTER, HudTweaksModule::bossBarScale));
-		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, original -> scaled(original, Anchor.RIGHT_MIDDLE, HudTweaksModule::scoreboardScale));
+		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, original -> scaled((g, t) -> {
+			if (!vanta.modules.impl.ScoreboardModule.render(g)) original.render(g, t);
+		}, Anchor.RIGHT_MIDDLE, HudTweaksModule::scoreboardScale));
 		HudElementRegistry.replaceElement(VanillaHudElements.TITLE_AND_SUBTITLE, original -> scaled(original, Anchor.CENTER, HudTweaksModule::titleScale));
 		HudElementRegistry.replaceElement(VanillaHudElements.STATUS_EFFECTS, original -> (g, t) -> {
 			if (!HudTweaksModule.hideEffects()) original.render(g, t);

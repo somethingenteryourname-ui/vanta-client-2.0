@@ -1,4 +1,4 @@
-# VANTA Client — Stage 2
+# VANTA Client — Stage 3
 
 A customizable client experience inside one Fabric mod for **Minecraft Java 1.21.11**:
 a launcher-style home screen, a RIGHT SHIFT client menu with search, a module system,
@@ -43,6 +43,9 @@ draggable HUD widgets, a theme system shared by every screen, and live performan
 |---|---|
 | Right Shift | Open / close the VANTA menu (rebind in Options → Controls → Key Binds → VANTA Client) |
 | (unbound) | Open the HUD editor directly — set a key in the same place |
+| B | Add a waypoint where you stand (Waypoints module) |
+| (unbound) | Open the waypoint list |
+| 1 - 9 | On the home screen: join favorite server 1-9 |
 | Tab | Focus search in the menu |
 | ↑ / ↓ / Enter | Pick a search result |
 | Esc | Clear search → leave module page → close |
@@ -79,14 +82,22 @@ R resets the selected widget, double-click opens its settings.
 
 **Left out on purpose:** removing the end crystal / respawn anchor place-and-break delay. That's what anticheats flag as FastPlace/AutoCrystal and can get you banned; VANTA only changes visuals and performance.
 
-**Not included yet:** voice chat, cosmetics store, waypoints, nick hider, motion blur, loot beams, Discord status, Tier Tagger (these need online services, shaders or deeper rendering changes).
+**Not included yet:** voice chat, cosmetics store, motion blur, loot beams, Discord status, Tier Tagger (these need online services, shaders or deeper rendering changes).
+
+## New in stage 3
+
+- **Ping with region:** the Ping widget, pause menu and F3 panel show your region next to the ping, like `53 ms (NA Central)`. It's read from the server address first (na., nae., dal., eu., ...); otherwise the server's IP is looked up once at ipwho.is. Servers behind DDoS protection show the protection network's nearest location. Turn the online lookup off in Settings > Network.
+- **Home screen:** custom background images and GIFs (put them in `config/vanta/backgrounds`), a "last world" background (a small picture of where you last played, saved on your PC), a Continue card, favorite servers with live ping and player count (keys 1-9 join them), recent servers and recent worlds, all one click to join.
+- **Waypoints:** saved per world/server and dimension, on-screen markers with distance, automatic death point, rename / recolor / hide / delete in the module page. **Minimap:** terrain only (no caves, mobs or players), zoom, rotate, waypoint dots, north marker.
+- **Interface:** Clean F3 panel (replaces the debug screen with a tidy themed one), Scoreboard restyle (hide the red numbers, move it), Tab List (ping numbers, theme colors), Auto Reconnect (button + countdown, never retries a ban), Nick Hider (your name and skin on your screen only).
+- **PvP / visuals:** Totem Pop Counter, Item Cooldowns widget, Damage Indicators, Nametags (background opacity, size, own nametag, health and pops), Hit Color, Item Physics, Time & Sky (time changer, sky color), Weather (hide rain and storms).
 
 ## Tested vs. not tested - honest status
 
 Tested here:
 - Every Minecraft class, method and mixin target was checked against a decompiled copy of the real 1.21.11 client source.
 - All code compiles against stubs of those exact signatures.
-- 39 automated logic tests pass: save/load, broken-file recovery, profiles (create, switch, rename, copy, delete, import validation, broken files), saved themes, style presets, chroma, crosshair presets, preset previews, particle and culling logic, FPS math, mod detection.
+- 39 automated logic tests pass (plus 27 new stage 3 tests: region detection, GIF decoding, capture sizes, image formats, quick-play helpers): save/load, broken-file recovery, profiles (create, switch, rename, copy, delete, import validation, broken files), saved themes, style presets, chroma, crosshair presets, preset previews, particle and culling logic, FPS math, mod detection.
 
 Not tested yet:
 - The real Gradle build (GitHub Actions does it).
@@ -94,8 +105,9 @@ Not tested yet:
 
 ## Privacy and fair play
 
-VANTA works offline, needs no account, sends no telemetry, and stores settings only in
-your config folder. It changes visuals and menus only: Keystrokes and CPS display input;
+VANTA needs no account, sends no telemetry, and stores settings only in your config folder.
+The only network request is the optional region lookup (it sends the server's IP to ipwho.is,
+once per server; switch it off in Settings > Network). It changes visuals and menus only: Keystrokes and CPS display input;
 nothing clicks, aims, or changes reach or hitboxes.
 
 ## Project layout
@@ -113,5 +125,8 @@ src/main/java/vanta/
   input/        key bindings
   compat/       installed-mod detection
   ui/           drawing primitives, icons, colors, animation
-  mixin/        one mixin: title-screen swap + per-frame timestamp
+  mixin/        core mixin + optional feature mixins (each failing alone)
+  waypoints/    waypoints, markers, world-to-screen projection
+  net/          region lookup
+  combat/       reach/combo stats, totem pop tracker
 ```

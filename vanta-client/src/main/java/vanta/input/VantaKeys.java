@@ -18,6 +18,8 @@ public final class VantaKeys {
 	public static KeyMapping HUD_EDITOR;
 	public static KeyMapping ZOOM;
 	public static KeyMapping FREELOOK;
+	public static KeyMapping ADD_WAYPOINT;
+	public static KeyMapping WAYPOINT_LIST;
 	public static KeyMapping[] AUTO_TEXT = new KeyMapping[3];
 
 	private VantaKeys() {
@@ -33,6 +35,10 @@ public final class VantaKeys {
 				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, category));
 		FREELOOK = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.vanta.freelook",
 				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, category));
+		ADD_WAYPOINT = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.vanta.add_waypoint",
+				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, category));
+		WAYPOINT_LIST = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.vanta.waypoint_list",
+				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
 		for (int i = 0; i < AUTO_TEXT.length; i++) {
 			AUTO_TEXT[i] = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.vanta.auto_text_" + (i + 1),
 					InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));

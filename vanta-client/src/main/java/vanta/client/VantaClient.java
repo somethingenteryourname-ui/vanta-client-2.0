@@ -48,6 +48,7 @@ public final class VantaClient implements ClientModInitializer {
 		PerformanceState.init();
 		ProfileManager.init();
 		ModuleRegistry.init();
+		vanta.net.RegionLookup.init();
 		// 2. Load saved values (safe: a broken file falls back to defaults).
 		ConfigManager.get().load();
 		ProfileManager.ensureBuiltIns();
@@ -55,6 +56,8 @@ public final class VantaClient implements ClientModInitializer {
 		// 3. Hooks.
 		VantaKeys.register();
 		HudManager.register();
+		vanta.menu.PauseMenuExtras.register();
+		vanta.modules.impl.AutoReconnectModule.register();
 		CompatDetector.scan();
 		ClientTickEvents.END_CLIENT_TICK.register(VantaClient::onTick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ConfigManager.get().saveIfDirty());
@@ -68,6 +71,7 @@ public final class VantaClient implements ClientModInitializer {
 		ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
 			if (screen instanceof DeathScreen) {
 				DeathCoordsModule.onDeathScreen(client);
+				vanta.waypoints.WaypointsModule.onDeath(client);
 				ScreenEvents.afterRender(screen).register((s, g, mx, my, delta) -> {
 					String text = DeathCoordsModule.deathText();
 					if (text != null) g.drawCenteredString(Ui.font(), text, s.width / 2, s.height - 22, 0xFFBFBFBF);
@@ -89,6 +93,18 @@ public final class VantaClient implements ClientModInitializer {
 			if (client.screen == null) client.setScreen(new HudEditorScreen(null));
 		}
 		CombatTracker.tick(client);
+		vanta.combat.TotemTracker.tick(client);
+		vanta.menu.PauseMenuExtras.tick(client);
+		vanta.menu.QuickPlay.tick(client);
+		if (client.level == null) vanta.waypoints.WorldProjection.invalidate();
+		if (!vanta.waypoints.WaypointsModule.active()) {
+			while (VantaKeys.ADD_WAYPOINT.consumeClick()) {
+				// Waypoints is off: drop the presses so they don't pile up
+			}
+			while (VantaKeys.WAYPOINT_LIST.consumeClick()) {
+				// same
+			}
+		}
 		ModuleRegistry.tickAll(client);
 		ConfigManager.get().tick();
 	}

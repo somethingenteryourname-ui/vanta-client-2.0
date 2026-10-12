@@ -38,6 +38,7 @@ import vanta.metrics.FrameMetrics;
 import vanta.modules.Category;
 import vanta.modules.Module;
 import vanta.modules.ModuleRegistry;
+import vanta.modules.impl.TitleScreenModule;
 import vanta.performance.PerformancePresets;
 import vanta.performance.PerformanceState;
 import vanta.performance.RecommendedMods;
@@ -597,11 +598,20 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		lb.row(List.of(new BasicItems.ButtonItem("Home screen options", false, () -> openModule(ModuleRegistry.TITLE_SCREEN),
 				"Background, sidebar, buttons and welcome text.")), 140, 18);
 
+		section(lb, "Minecraft menus", "Pause menu, world and server lists, and other menus in the VANTA style");
+		lb.row(List.of(new BasicItems.ButtonItem("Menu Style options", false, () -> openModule(ModuleRegistry.byId("menu_style")),
+				"Choose which menus get the VANTA look, the pause info panel, blur and dimming.")), 140, 18);
+
+		section(lb, "Network", "The only thing VANTA ever sends over the internet");
+		settingRows(lb, List.of(vanta.net.RegionLookup.ONLINE));
+
 		section(lb, "Keys", "Change them in Options > Controls > Key Binds > VANTA Client");
 		lb.full(new BasicItems.KeyValueRow("Open this menu", VantaKeys::menuKeyName, 0), 13);
 		lb.full(new BasicItems.KeyValueRow("HUD editor", () -> VantaKeys.name(VantaKeys.HUD_EDITOR), 0), 13);
 		lb.full(new BasicItems.KeyValueRow("Zoom", () -> VantaKeys.name(VantaKeys.ZOOM), 0), 13);
 		lb.full(new BasicItems.KeyValueRow("Freelook", () -> VantaKeys.name(VantaKeys.FREELOOK), 0), 13);
+		lb.full(new BasicItems.KeyValueRow("Add waypoint", () -> VantaKeys.name(VantaKeys.ADD_WAYPOINT), 0), 13);
+		lb.full(new BasicItems.KeyValueRow("Waypoint list", () -> VantaKeys.name(VantaKeys.WAYPOINT_LIST), 0), 13);
 		for (int i = 0; i < VantaKeys.AUTO_TEXT.length; i++) {
 			final int k = i;
 			lb.full(new BasicItems.KeyValueRow("Auto Text " + (i + 1), () -> VantaKeys.name(VantaKeys.AUTO_TEXT[k]), 0), 13);
@@ -634,7 +644,9 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		section(lb, Theme.clientName() + " Client", "Version " + VantaInfo.vantaVersion() + " for Minecraft " + VantaInfo.minecraftVersion());
 		statusRows(lb);
 		section(lb, "Privacy", null);
-		paragraph(lb, "VANTA works fully offline. It needs no account, sends no telemetry, and only stores settings in your config folder.", 0);
+		paragraph(lb, "VANTA needs no account, sends no telemetry, and stores settings only in your config folder. "
+				+ "The one network request is the optional server region lookup next to your ping: it sends only the server's IP to ipwho.is, "
+				+ "once per server. Turn it off in Settings > Network to stay fully offline.", 0);
 		section(lb, "Fair play", null);
 		paragraph(lb, "VANTA changes what you see and how smoothly the game runs. It never clicks, aims, changes reach, "
 				+ "or removes Minecraft's place/break delays. Reach, combo, CPS and keystrokes only display what already happened.", 0);
@@ -645,10 +657,10 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 			for (CompatDetector.Detected d : CompatDetector.detected()) paragraph(lb, d.name() + ": " + d.note(), 0);
 		}
 		section(lb, "This build", null);
-		paragraph(lb, ModuleRegistry.all().size() + " modules: zoom, freelook, fullbright, custom crosshair, block outline, screen effects, "
-				+ "hitboxes, toggle sprint, keystrokes, CPS, reach, combo, armor status, combat counter, FPS, frame time, coordinates, "
-				+ "direction, ping, memory, potion effects, clock, speed, server address, HUD tweaks, shulker preview, death info, "
-				+ "auto perspective, auto text, particles, entity culling, background FPS and the home screen.\n"
+		paragraph(lb, ModuleRegistry.all().size() + " modules, including zoom, freelook, fullbright, custom crosshair, block outline, "
+				+ "hitboxes, nametags, damage indicators, hit color, item physics, time and sky, weather, minimap, waypoints, "
+				+ "scoreboard and tab list restyles, a clean F3 panel, totem pop counter, item cooldowns, keystrokes, CPS, reach, combo, "
+				+ "armor status, FPS, ping with region, auto reconnect, nick hider and the home screen with quick join.\n"
 				+ "Plus performance presets with undo, profiles, saved themes and a deeply customizable interface.", 0);
 	}
 
@@ -661,6 +673,8 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 			lb.row(List.of(new BasicItems.ButtonItem("Open crosshair editor", true, () -> openPage(MenuPage.CROSSHAIR), null)), 140, 18);
 			return;
 		}
+		if (m == ModuleRegistry.TITLE_SCREEN) backgroundExtras(lb);
+		if (m instanceof vanta.waypoints.WaypointsModule) vanta.waypoints.WaypointMenu.build(this, lb);
 		List<Setting<?>> settings = m.visibleSettings();
 		if (!settings.isEmpty()) {
 			section(lb, "Settings", null);
@@ -674,6 +688,31 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 					m.resetToDefaults();
 					m.syncExternal();
 				})), "Restore this module's defaults."));
+		lb.row(actions, 110, 18);
+	}
+
+	/** Custom background images: folder button and one chip per image found. */
+	private void backgroundExtras(LayoutBuilder lb) {
+		section(lb, "Background images", "Put PNG, JPG or GIF files in config/vanta/backgrounds, then pick one here");
+		paragraph(lb, vanta.menu.BackgroundImages.customStatus(), Theme.textFaint());
+		List<Item> chips = new ArrayList<>();
+		TitleScreenModule t = ModuleRegistry.TITLE_SCREEN;
+		for (String file : vanta.menu.BackgroundImages.available()) {
+			chips.add(new BasicItems.ChipItem(file, () -> file.equalsIgnoreCase(t.imageFile.get()), () -> {
+				t.imageFile.set(file);
+				t.background.set(TitleScreenModule.Background.CUSTOM_IMAGE);
+				rebuild();
+			}));
+		}
+		if (!chips.isEmpty()) lb.grid(chips, 120, 16);
+		List<Item> actions = new ArrayList<>();
+		actions.add(new BasicItems.ButtonItem("Open backgrounds folder", false, vanta.menu.BackgroundImages::openFolder,
+				"Add your own images or GIFs here. GIFs are scaled to 640 px wide and up to 120 frames."));
+		actions.add(new BasicItems.ButtonItem("Refresh list", false, this::rebuild, "Look for new files."));
+		actions.add(new BasicItems.ButtonItem("Use last world", false, () -> {
+			t.background.set(TitleScreenModule.Background.LAST_WORLD);
+			rebuild();
+		}, "Show the last world you played behind the home screen."));
 		lb.row(actions, 110, 18);
 	}
 

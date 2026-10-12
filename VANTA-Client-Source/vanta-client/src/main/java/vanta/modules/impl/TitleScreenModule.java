@@ -12,7 +12,8 @@ import vanta.modules.Module;
 /** Replaces the vanilla title screen with the VANTA home screen. */
 public final class TitleScreenModule extends Module {
 	public enum Background implements Labeled {
-		PANORAMA("Vanilla panorama"), DARK("Minimal dark"), GRADIENT("Accent gradient"), ANIMATED("Subtle motion");
+		PANORAMA("Vanilla panorama"), DARK("Minimal dark"), GRADIENT("Accent gradient"), ANIMATED("Subtle motion"),
+		LAST_WORLD("Last world you played"), CUSTOM_IMAGE("Custom image / GIF");
 		private final String label;
 		Background(String label) { this.label = label; }
 		@Override public String label() { return label; }
@@ -55,6 +56,14 @@ public final class TitleScreenModule extends Module {
 			"Gap between home screen buttons.", 4, 0, 12, 1, "px"));
 	public final TextSetting welcomeText = setting(new TextSetting(key("welcome_text"), "Welcome text",
 			"Greeting on the home screen. {name} is replaced with your Minecraft username.", "Welcome back, {name}", 48));
+	public final TextSetting imageFile = setting(new TextSetting(key("image_file"), "Custom image file",
+			"File name inside config/vanta/backgrounds (PNG, JPG or GIF). Leave empty to use the first image there.", "", 96));
+	public final BoolSetting imageMotion = setting(new BoolSetting(key("image_motion"), "Slow pan and zoom",
+			"Gently moves image backgrounds (custom and last world). Off with Reduced motion.", true));
+	public final BoolSetting captureWorld = setting(new BoolSetting(key("capture_world"), "Remember last world view",
+			"Saves a small picture of the world (no HUD) about once a minute and when you pause, for the Last world background. Stays on your PC.", true));
+	public final BoolSetting quickJoin = setting(new BoolSetting(key("quick_join"), "Quick join panel",
+			"Favorite servers with live ping and player count, plus recent servers and worlds, on the home screen.", true));
 	public final BoolSetting showInfo = setting(new BoolSetting(key("show_info"), "Show info cards",
 			"Version, FPS and client status cards on the home screen.", true));
 

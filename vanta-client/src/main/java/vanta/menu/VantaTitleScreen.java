@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.storage.LevelSummary;
 
 import vanta.branding.Theme;
 import vanta.client.VantaClient;
@@ -31,11 +32,18 @@ import vanta.ui.Ui;
 
 /**
  * The VANTA home screen. Every button leads to a real screen: worlds and servers use
- * Minecraft's own screens (so world creation, saved servers, direct connect and
- * authentication all work exactly as in vanilla), and "Vanilla menu" is always available.
+ * Minecraft's own screens and join flows (so world creation, saved servers, direct connect,
+ * resource packs and authentication all work exactly as in vanilla), and "Vanilla menu" is
+ * always available. Favorite servers show live ping and player count and join in one click
+ * (or with keys 1-9).
  */
 public final class VantaTitleScreen extends VantaScreen {
 	private enum Page { HOME, PLAY, ABOUT }
+
+	private enum ServerTab { FAVORITES("Favorites"), RECENT("Recent"), SAVED("Saved");
+		final String label;
+		ServerTab(String label) { this.label = label; }
+	}
 
 	private record Nav(String label, String[] icon, Runnable action, String hint, boolean enabled) {
 	}
@@ -43,9 +51,23 @@ public final class VantaTitleScreen extends VantaScreen {
 	private record Btn(int x, int y, int w, int h, String label, String[] icon, boolean primary, Runnable action, String hint, boolean enabled) {
 	}
 
+	/** A server / world line. {@code hotkey} > 0 shows a number badge; {@code star} shows the favorite toggle. */
+	private record Row(int x, int y, int w, int h, QuickPlay.Entry server, LevelSummary world, int hotkey, boolean star, boolean big) {
+	}
+
+	private static final int STAR_W = 16;
+
 	private Page page = Page.HOME;
+	private ServerTab serverTab;
+	private int serverScroll;
+	private int serverListX, serverListY, serverListW, serverListH, serverRowsFit, serverTotal;
+	private List<QuickPlay.Entry> savedServers;
+	private boolean worldsRequested;
 	private final List<Btn> buttons = new ArrayList<>();
+	private final List<Row> rows = new ArrayList<>();
+	private final List<String[]> labels = new ArrayList<>(); // {x, y, text} section labels for lists
 	private int sidebarX, sidebarW, mainX, mainW;
+	private int quickX = -1, quickW;
 	private String hoverHint;
 	private String cachedWelcome;
 	private String cachedWelcomeSource;
@@ -68,6 +90,20 @@ public final class VantaTitleScreen extends VantaScreen {
 		minecraft.setScreen(minecraft.options.skipMultiplayerWarning ? new JoinMultiplayerScreen(this) : new SafetyScreen(this));
 	}
 
+	private void joinServer(QuickPlay.Entry e) {
+		if (!minecraft.allowsMultiplayer()) return;
+		if (!minecraft.options.skipMultiplayerWarning) {
+			// First time on multiplayer: show Minecraft's own third-party server warning first.
+			minecraft.setScreen(new SafetyScreen(this));
+			return;
+		}
+		QuickPlay.join(minecraft, this, e);
+	}
+
+	private void joinWorld(LevelSummary world) {
+		QuickPlay.openWorld(minecraft, world, () -> minecraft.setScreen(this));
+	}
+
 	private void openOptions() { minecraft.setScreen(new OptionsScreen(this, minecraft.options)); }
 	private void openMenu(MenuPage p) { minecraft.setScreen(new VantaMenuScreen(this, p)); }
 	private void openVanilla() { minecraft.setScreen(TitleScreenHook.vanillaTitleScreen()); }
@@ -84,8 +120,39 @@ public final class VantaTitleScreen extends VantaScreen {
 
 	private void setPage(Page p) {
 		page = p;
+		serverScroll = 0;
 		openedAt = System.currentTimeMillis();
 		layout();
+	}
+
+	private void setTab(ServerTab t) {
+		serverTab = t;
+		serverScroll = 0;
+		layout();
+	}
+
+	// ------------------------------------------------------------ data
+
+	/** The most recent server or world, for the Continue card. */
+	private Object lastPlayed() {
+		List<QuickPlay.Entry> recent = QuickPlay.recent();
+		List<LevelSummary> worlds = QuickPlay.recentWorlds();
+		QuickPlay.Entry s = recent.isEmpty() || !minecraft.allowsMultiplayer() ? null : recent.get(0);
+		LevelSummary w = worlds.isEmpty() ? null : worlds.get(0);
+		if (s == null) return w;
+		if (w == null) return s;
+		return s.time() >= w.getLastPlayed() ? s : w;
+	}
+
+	private List<QuickPlay.Entry> serverList() {
+		return switch (serverTab) {
+			case FAVORITES -> QuickPlay.favorites();
+			case RECENT -> QuickPlay.recent();
+			case SAVED -> {
+				if (savedServers == null) savedServers = QuickPlay.savedServers(minecraft);
+				yield savedServers;
+			}
+		};
 	}
 
 	// ------------------------------------------------------------ layout
@@ -93,6 +160,15 @@ public final class VantaTitleScreen extends VantaScreen {
 	@Override
 	protected void layout() {
 		buttons.clear();
+		rows.clear();
+		labels.clear();
+		quickX = -1;
+		if (!worldsRequested) {
+			worldsRequested = true;
+			QuickPlay.refreshWorlds(minecraft);
+		}
+		if (serverTab == null) serverTab = QuickPlay.favorites().isEmpty() ? ServerTab.SAVED : ServerTab.FAVORITES;
+
 		TitleScreenModule c = cfg();
 		boolean multiplayer = minecraft.allowsMultiplayer();
 		int bh = c.buttonHeight.value();
@@ -112,7 +188,7 @@ public final class VantaTitleScreen extends VantaScreen {
 		if (sidebarW > 0) {
 			List<Nav> nav = new ArrayList<>();
 			nav.add(new Nav("Home", Icons.HOME, () -> setPage(Page.HOME), "Home", true));
-			nav.add(new Nav("Play", Icons.PLAY, () -> setPage(Page.PLAY), "Choose singleplayer or multiplayer", true));
+			nav.add(new Nav("Play", Icons.PLAY, () -> setPage(Page.PLAY), "Favorite servers, recent servers and worlds", true));
 			nav.add(new Nav("Singleplayer", Icons.CUBE, this::openSingleplayer, "Your worlds: play, create, edit", true));
 			nav.add(new Nav("Multiplayer", Icons.GLOBE, this::openMultiplayer,
 					multiplayer ? "Servers, direct connect, add server" : "Multiplayer is disabled for this account", multiplayer));
@@ -148,7 +224,7 @@ public final class VantaTitleScreen extends VantaScreen {
 		int cw = mainW - pad * 2;
 		switch (page) {
 			case HOME -> layoutHome(cx, cw, bh, gap, multiplayer);
-			case PLAY -> layoutPlay(cx, cw, multiplayer);
+			case PLAY -> layoutPlay(cx, cw, bh, multiplayer);
 			case ABOUT -> layoutAbout(cx, cw, bh);
 		}
 	}
@@ -168,7 +244,7 @@ public final class VantaTitleScreen extends VantaScreen {
 	private void layoutHome(int cx, int cw, int bh, int gap, boolean multiplayer) {
 		int y = homeTop() + (showHeaderLogo() ? 58 : 24);
 		int bw = Math.min(260, cw);
-		buttons.add(new Btn(cx, y, bw, bh + 6, "Play", Icons.PLAY, true, () -> setPage(Page.PLAY), "Singleplayer and multiplayer", true));
+		buttons.add(new Btn(cx, y, bw, bh + 6, "Play", Icons.PLAY, true, () -> setPage(Page.PLAY), "Favorites, recent servers and worlds", true));
 		y += bh + 6 + gap;
 		int half = (bw - gap) / 2;
 		buttons.add(new Btn(cx, y, half, bh, "Singleplayer", Icons.CUBE, false, this::openSingleplayer, "Your worlds", true));
@@ -184,17 +260,124 @@ public final class VantaTitleScreen extends VantaScreen {
 			int w = i == 3 ? bw - 3 * (q + gap) : q;
 			buttons.add(new Btn(cx + i * (q + gap), y, w, bh - 2, quick[i][0], icons[i], false, actions[i], null, true));
 		}
+
+		// Quick join panel to the right of the buttons
+		int px = cx + bw + 24;
+		int pw = Math.min(240, mainX + mainW - 18 - px);
+		if (!cfg().quickJoin.on() || pw < 170) return;
+		quickX = px;
+		quickW = pw;
+		int top = Math.max(24, homeTop() - 6);
+		int bottom = vh - 22;
+		int ry = top;
+
+		Object last = lastPlayed();
+		if (last != null) {
+			labels.add(new String[] {String.valueOf(px), String.valueOf(ry), "Continue"});
+			ry += 11;
+			rows.add(last instanceof QuickPlay.Entry e ? new Row(px, ry, pw, 40, e, null, 0, false, true)
+					: new Row(px, ry, pw, 40, null, (LevelSummary) last, 0, false, true));
+			ry += 46;
+		}
+
+		if (multiplayer) {
+			labels.add(new String[] {String.valueOf(px), String.valueOf(ry), "Favorites"});
+			ry += 11;
+			List<QuickPlay.Entry> favs = QuickPlay.favorites();
+			if (favs.isEmpty()) {
+				labels.add(new String[] {String.valueOf(px), String.valueOf(ry + 2), "~Star servers on the Play page to pin them here."});
+				ry += 16;
+			}
+			for (int i = 0; i < favs.size() && i < 9 && ry + 18 <= bottom - 30; i++) {
+				rows.add(new Row(px, ry, pw, 18, favs.get(i), null, i + 1, false, false));
+				ry += 20;
+			}
+			ry += 4;
+		}
+
+		// Recent servers and worlds, newest first (skipping what's already shown)
+		List<Object> recent = new ArrayList<>();
+		if (multiplayer) for (QuickPlay.Entry e : QuickPlay.recent()) if (e != last && !QuickPlay.isFavorite(e.ip())) recent.add(e);
+		for (LevelSummary w : QuickPlay.recentWorlds()) if (w != last) recent.add(w);
+		recent.sort((a, b) -> Long.compare(time(b), time(a)));
+		if (!recent.isEmpty() && ry + 11 + 18 <= bottom) {
+			labels.add(new String[] {String.valueOf(px), String.valueOf(ry), "Recent"});
+			ry += 11;
+			for (Object o : recent) {
+				if (ry + 18 > bottom) break;
+				rows.add(o instanceof QuickPlay.Entry e ? new Row(px, ry, pw, 18, e, null, 0, false, false)
+						: new Row(px, ry, pw, 18, null, (LevelSummary) o, 0, false, false));
+				ry += 20;
+			}
+		}
 	}
 
-	private void layoutPlay(int cx, int cw, boolean multiplayer) {
-		int tileW = Math.min(180, (cw - 10) / 2);
-		int tileH = 96;
-		int y = vh / 2 - tileH / 2 + 6;
-		buttons.add(new Btn(cx, y, tileW, tileH, "Singleplayer", Icons.CUBE, false, this::openSingleplayer,
-				"Play, create, edit and back up worlds", true));
-		buttons.add(new Btn(cx + tileW + 10, y, tileW, tileH, "Multiplayer", Icons.GLOBE, false, this::openMultiplayer,
-				multiplayer ? "Saved servers, direct connect and adding servers" : "Multiplayer is disabled for this account", multiplayer));
-		buttons.add(new Btn(cx, y + tileH + 10, 80, 18, "Back", Icons.BACK, false, () -> setPage(Page.HOME), null, true));
+	private static long time(Object o) {
+		return o instanceof QuickPlay.Entry e ? e.time() : ((LevelSummary) o).getLastPlayed();
+	}
+
+	private void layoutPlay(int cx, int cw, int bh, boolean multiplayer) {
+		int top = 24;
+		int y = top + 30;
+		int half = (cw - 10) / 2;
+		buttons.add(new Btn(cx, y, half, bh + 6, "Singleplayer", Icons.CUBE, false, this::openSingleplayer,
+				"All worlds: play, create, edit and back up", true));
+		buttons.add(new Btn(cx + half + 10, y, cw - half - 10, bh + 6, "Multiplayer", Icons.GLOBE, false, this::openMultiplayer,
+				multiplayer ? "All servers, direct connect and adding servers" : "Multiplayer is disabled for this account", multiplayer));
+		y += bh + 6 + 14;
+
+		int bottom = vh - 34;
+		int leftW = multiplayer ? (cw - 12) * 3 / 5 : 0;
+		int rightX = multiplayer ? cx + leftW + 12 : cx;
+		int rightW = cw - (rightX - cx);
+
+		if (multiplayer) {
+			// Tabs
+			int tx = cx;
+			for (ServerTab t : ServerTab.values()) {
+				int tw = Ui.width(t.label) + 16;
+				buttons.add(new Btn(tx, y, tw, 14, t.label, Icons.STAR, t == serverTab, () -> setTab(t), switch (t) {
+					case FAVORITES -> "Servers you starred. Keys 1-9 join them from the home screen.";
+					case RECENT -> "Servers you joined lately. Right-click to remove one.";
+					case SAVED -> "Your Multiplayer list. Click the star to make a server a favorite.";
+				}, true));
+				tx += tw + 4;
+			}
+			int ly = y + 18;
+			List<QuickPlay.Entry> list = serverList();
+			serverListX = cx;
+			serverListY = ly;
+			serverListW = leftW;
+			serverListH = bottom - ly;
+			serverRowsFit = Math.max(1, (serverListH + 2) / 22);
+			serverTotal = list.size();
+			serverScroll = Math.max(0, Math.min(serverScroll, list.size() - serverRowsFit));
+			if (list.isEmpty()) {
+				String msg = switch (serverTab) {
+					case FAVORITES -> "~No favorites yet. Open Saved or Recent and click a star.";
+					case RECENT -> "~Servers you join show up here.";
+					case SAVED -> "~Your Multiplayer server list is empty.";
+				};
+				labels.add(new String[] {String.valueOf(cx), String.valueOf(ly + 4), msg});
+			}
+			for (int i = serverScroll; i < list.size() && i < serverScroll + serverRowsFit; i++) {
+				int hotkey = serverTab == ServerTab.FAVORITES && i < 9 ? i + 1 : 0;
+				rows.add(new Row(cx, ly, leftW, 20, list.get(i), null, hotkey, true, false));
+				ly += 22;
+			}
+		}
+
+		labels.add(new String[] {String.valueOf(rightX), String.valueOf(y + 3), "Recent worlds"});
+		int wy = y + 18;
+		List<LevelSummary> worlds = QuickPlay.recentWorlds();
+		if (worlds.isEmpty()) labels.add(new String[] {String.valueOf(rightX), String.valueOf(wy + 4), "~Your newest worlds show up here."});
+		for (LevelSummary w : worlds) {
+			if (wy + 20 > bottom) break;
+			rows.add(new Row(rightX, wy, rightW, 20, null, w, 0, false, false));
+			wy += 22;
+		}
+
+		buttons.add(new Btn(cx, vh - 28, 80, 18, "Back", Icons.BACK, false, () -> setPage(Page.HOME), null, true));
 	}
 
 	private void layoutAbout(int cx, int cw, int bh) {
@@ -207,31 +390,22 @@ public final class VantaTitleScreen extends VantaScreen {
 
 	@Override
 	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
-		TitleScreenModule c = cfg();
-		switch (c.background.get()) {
-			case PANORAMA -> super.renderBackground(g, mouseX, mouseY, delta);
-			case DARK -> g.fill(0, 0, width, height, Theme.background());
-			case GRADIENT -> {
-				g.fill(0, 0, width, height, Theme.background());
-				g.fillGradient(0, 0, width, height, Colors.withAlpha(Theme.accent(), 0.22f), Colors.withAlpha(Theme.secondary(), 0.06f));
-			}
-			case ANIMATED -> renderAnimatedBackground(g);
-		}
-		int dim = c.backgroundDim.value();
-		if (dim > 0) g.fill(0, 0, width, height, Colors.withAlpha(0xFF000000, dim / 100f));
+		if (MenuBackground.wantsPanorama()) super.renderBackground(g, mouseX, mouseY, delta);
+		MenuBackground.outOfWorld(g, width, height);
 	}
 
-	/** A few slow, translucent diagonal bands: cheap (a handful of rectangles) and static with Reduced motion. */
-	private void renderAnimatedBackground(GuiGraphics g) {
-		g.fill(0, 0, width, height, Theme.background());
-		double t = Theme.reducedMotion() ? 0 : (System.currentTimeMillis() % 60000L) / 60000.0;
-		for (int i = 0; i < 4; i++) {
-			double phase = (t + i * 0.25) % 1.0;
-			int y = (int) (phase * (height + 120)) - 60;
-			int color = Colors.withAlpha(i % 2 == 0 ? Theme.accent() : Theme.secondary(), 0.05f);
-			g.fillGradient(0, y - 40, width, y, 0x00000000, color);
-			g.fillGradient(0, y, width, y + 40, color, 0x00000000);
-		}
+	@Override
+	public void tick() {
+		super.tick();
+		QuickPlay.tickPinger();
+	}
+
+	@Override
+	public void removed() {
+		super.removed();
+		QuickPlay.clearPings();
+		savedServers = null;
+		worldsRequested = false;
 	}
 
 	@Override
@@ -253,14 +427,31 @@ public final class VantaTitleScreen extends VantaScreen {
 			case PLAY -> renderPlay(g);
 			case ABOUT -> renderAbout(g);
 		}
+		for (String[] l : labels) {
+			boolean faint = l[2].startsWith("~");
+			Ui.text(g, faint ? l[2].substring(1) : l[2], Integer.parseInt(l[0]), Integer.parseInt(l[1]), faint ? Theme.textFaint() : Theme.textDim());
+		}
 		g.pose().popMatrix();
 
 		for (Btn b : buttons) {
-			boolean inMain = !(b.x() >= sidebarX && b.x() < sidebarX + sidebarW && sidebarW > 0);
-			int bx = inMain ? b.x() + slide : b.x();
+			int bx = inMain(b.x()) ? b.x() + slide : b.x();
 			boolean hov = b.enabled() && Ui.inside(mx, my, bx, b.y(), b.w(), b.h());
 			if (Ui.inside(mx, my, bx, b.y(), b.w(), b.h())) hoverHint = b.hint();
 			drawButton(g, b, bx, hov);
+		}
+		for (Row r : rows) {
+			int rx = r.x() + slide;
+			boolean hov = Ui.inside(mx, my, rx, r.y(), r.w(), r.h());
+			boolean starHov = r.star() && Ui.inside(mx, my, rx + r.w() - STAR_W - 2, r.y(), STAR_W, r.h());
+			if (hov) hoverHint = rowHint(r, starHov);
+			drawRow(g, r, rx, hov, starHov);
+		}
+		if (page == Page.PLAY && serverTotal > serverRowsFit && serverListW > 0) {
+			int trackH = serverListH;
+			int thumbH = Math.max(10, trackH * serverRowsFit / serverTotal);
+			int thumbY = serverListY + (trackH - thumbH) * serverScroll / Math.max(1, serverTotal - serverRowsFit);
+			Ui.rect(g, serverListX + serverListW + 3 + slide, serverListY, 2, trackH, Colors.fade(Theme.border(), 0.6f));
+			Ui.rect(g, serverListX + serverListW + 3 + slide, thumbY, 2, thumbH, Theme.accent());
 		}
 
 		// Footer
@@ -269,13 +460,99 @@ public final class VantaTitleScreen extends VantaScreen {
 		Ui.textRight(g, "Copyright Mojang AB. Do not distribute!", mainX + mainW - 8, vh - 12, Colors.fade(Theme.textFaint(), 0.9f));
 		if (hoverHint != null) {
 			int hw = Ui.width(hoverHint) + 12;
-			int hx = Math.min(mx + 8, vw - hw - 4);
+			int hx = Math.max(4, Math.min(mx + 8, vw - hw - 4));
 			int hy = Math.min(my + 12, vh - 16);
 			Ui.roundRect(g, hx, hy, hw, 13, Theme.radius(), Colors.withAlpha(Theme.background(), 0.92f));
 			Ui.roundOutline(g, hx, hy, hw, 13, Theme.radius(), Theme.border());
 			Ui.text(g, hoverHint, hx + 6, hy + 3, Theme.textDim());
 		}
 		drawMenuFps(g, vw - 8, 6);
+	}
+
+	private boolean inMain(int x) {
+		return !(sidebarW > 0 && x >= sidebarX && x < sidebarX + sidebarW);
+	}
+
+	private String rowHint(Row r, boolean starHov) {
+		if (starHov) return QuickPlay.isFavorite(r.server().ip()) ? "Remove from favorites" : "Add to favorites";
+		if (r.server() != null) {
+			String hint = "Join " + r.server().ip();
+			if (r.hotkey() > 0 && page == Page.HOME) hint += "  (key " + r.hotkey() + ")";
+			if (page == Page.PLAY && serverTab == ServerTab.RECENT) hint += "  -  right-click to remove";
+			return hint;
+		}
+		LevelSummary w = r.world();
+		return "Open " + w.getLevelName() + (w.isHardcore() ? "  (hardcore)" : "");
+	}
+
+	private void drawRow(GuiGraphics g, Row r, int x, boolean hov, boolean starHov) {
+		Ui.card(g, x, r.y(), r.w(), r.h(), hov && !starHov, hov && !starHov ? Colors.fade(Theme.accent(), 0.7f) : 0);
+		int tx = x + 6;
+		int right = x + r.w() - 6 - (r.star() ? STAR_W : 0);
+
+		if (r.big()) {
+			int th = r.h() - 8;
+			int tw = th * 16 / 9;
+			boolean thumb = BackgroundImages.lastWorldThumbnail(g, x + 4, r.y() + 4, tw, th);
+			if (thumb) {
+				Ui.roundOutline(g, x + 4, r.y() + 4, tw, th, 1, Theme.border());
+				tx = x + tw + 10;
+			} else {
+				Ui.icon(g, r.server() != null ? Icons.GLOBE : Icons.CUBE, tx, r.y() + (r.h() - 9) / 2, Theme.accent());
+				tx += 15;
+			}
+			String title = r.server() != null ? r.server().name() : r.world().getLevelName();
+			String sub = r.server() != null ? r.server().ip() + "  " + QuickPlay.ago(r.server().time())
+					: "Singleplayer  " + QuickPlay.ago(r.world().getLastPlayed());
+			Ui.text(g, Ui.ellipsize(title, right - tx - 40), tx, r.y() + 8, Theme.text());
+			Ui.text(g, Ui.ellipsize(sub, right - tx), tx, r.y() + 21, Theme.textFaint());
+			int pw = Ui.width("Play") + 14;
+			int bx = x + r.w() - pw - 5;
+			Ui.accentFill(g, bx, r.y() + 5, pw, 13, Theme.radius(), hov ? 0.12f : 0f);
+			Ui.text(g, "Play", bx + 7, r.y() + 8, Colors.contrastText(Theme.accent()));
+			if (r.server() != null) drawPing(g, r.server(), x + r.w() - 6, r.y() + 26);
+			return;
+		}
+
+		int ty = r.y() + (r.h() - 8) / 2;
+		if (r.hotkey() > 0) {
+			Ui.roundRect(g, tx, r.y() + (r.h() - 11) / 2, 11, 11, 2, Colors.fade(Theme.panelHover(), 0.9f));
+			Ui.textCentered(g, String.valueOf(r.hotkey()), tx + 6, r.y() + (r.h() - 8) / 2 + 1, Theme.textDim());
+			tx += 15;
+		} else {
+			Ui.icon(g, r.server() != null ? Icons.GLOBE : Icons.CUBE, tx, r.y() + (r.h() - 9) / 2, hov ? Theme.accent() : Theme.textDim());
+			tx += 14;
+		}
+
+		if (r.server() != null) {
+			int used = drawPing(g, r.server(), right, ty);
+			Ui.text(g, Ui.ellipsize(r.server().name(), right - used - tx - 6), tx, ty, hov ? Theme.text() : Theme.textDim());
+			if (r.star()) {
+				boolean fav = QuickPlay.isFavorite(r.server().ip());
+				int color = fav ? 0xFFFACC15 : starHov ? Theme.text() : Colors.fade(Theme.textFaint(), 0.8f);
+				Ui.icon(g, Icons.STAR, x + r.w() - STAR_W + 1, r.y() + (r.h() - 9) / 2, color);
+			}
+		} else {
+			LevelSummary w = r.world();
+			String when = QuickPlay.ago(w.getLastPlayed());
+			Ui.textRight(g, when, right, ty, Theme.textFaint());
+			Ui.text(g, Ui.ellipsize(w.getLevelName(), right - Ui.width(when) - tx - 8), tx, ty, hov ? Theme.text() : Theme.textDim());
+		}
+	}
+
+	/** Draws "players  ping" right-aligned; returns the width used. */
+	private int drawPing(GuiGraphics g, QuickPlay.Entry e, int right, int y) {
+		QuickPlay.Status s = QuickPlay.status(minecraft, e);
+		String ping = s.pingText();
+		String players = s.playersText();
+		int pingW = Ui.width(ping);
+		Ui.textRight(g, ping, right, y, s.pingColor());
+		int used = pingW;
+		if (!players.isEmpty()) {
+			Ui.textRight(g, players, right - pingW - 6, y, Theme.textFaint());
+			used += Ui.width(players) + 6;
+		}
+		return used;
 	}
 
 	private void drawLogo(GuiGraphics g, int x, int y, float scale) {
@@ -329,6 +606,8 @@ public final class VantaTitleScreen extends VantaScreen {
 		int ty = b.y() + (b.h() - 8) / 2;
 		if (b.label().isEmpty()) {
 			Ui.icon(g, b.icon(), x + (b.w() - 9) / 2, b.y() + (b.h() - 9) / 2, iconColor);
+		} else if (b.h() < 16) {
+			Ui.text(g, Ui.ellipsize(b.label(), b.w() - 6), x + (b.w() - Math.min(Ui.width(b.label()), b.w() - 6)) / 2, ty, textColor);
 		} else if (b.primary() || b.w() < 70) {
 			int tw = Ui.width(b.label());
 			boolean withIcon = b.w() >= tw + 24;
@@ -354,7 +633,7 @@ public final class VantaTitleScreen extends VantaScreen {
 			}
 			cachedWelcome = raw.replace("{name}", name);
 		}
-		return cachedWelcome;
+		return vanta.modules.impl.NickHiderModule.filter(cachedWelcome);
 	}
 
 	private void renderHome(GuiGraphics g) {
@@ -364,10 +643,12 @@ public final class VantaTitleScreen extends VantaScreen {
 			drawLogo(g, cx, y, 3.2f * Theme.headingScale());
 			y += 42;
 		}
-		Ui.text(g, Ui.ellipsize(welcome(), mainW - 44), cx, y, Theme.text());
-		Ui.text(g, "Ready when you are.", cx, y + 11, Theme.textFaint());
+		int textW = (quickX > 0 ? quickX - cx - 10 : mainW - 44);
+		Ui.text(g, Ui.ellipsize(welcome(), textW), cx, y, Theme.text());
+		Ui.text(g, Ui.ellipsize("Ready when you are.", textW), cx, y + 11, Theme.textFaint());
 
-		if (cfg().showInfo.on()) renderInfoCards(g);
+		if (cfg().showInfo.on() && quickX < 0) renderInfoCards(g);
+		else if (cfg().showInfo.on()) renderWarning(g, quickX + quickW, vh - 24);
 	}
 
 	private void renderInfoCards(GuiGraphics g) {
@@ -390,17 +671,22 @@ public final class VantaTitleScreen extends VantaScreen {
 			Ui.text(g, Ui.ellipsize(card[1], cw - 12), x + 6, y + 17, Theme.text());
 			y += ch + gap;
 		}
+		renderWarning(g, mainX + mainW - 18, y + 4);
+	}
+
+	private void renderWarning(GuiGraphics g, int right, int y) {
 		String problem = ConfigManager.get().lastProblem();
 		String conflict = CompatDetector.titleScreenMods();
 		String warn = problem != null ? "Settings were reset - see VANTA menu" : conflict != null ? conflict + " detected" : null;
-		if (warn != null) Ui.textRight(g, Ui.ellipsize(warn, 240), mainX + mainW - 18, y + 4, 0xFFFBBF24);
+		if (warn != null) Ui.textRight(g, Ui.ellipsize(warn, 240), right, y, 0xFFFBBF24);
 	}
 
 	private void renderPlay(GuiGraphics g) {
 		int cx = mainX + 22;
-		int y = vh / 2 - 48 - 30;
-		Ui.textScaled(g, "Play", cx, y, 1.6f * Theme.headingScale(), Theme.text(), false);
-		Ui.text(g, "Pick how you want to play. Both open Minecraft's own world and server screens.", cx, y + 18, Theme.textFaint());
+		Ui.textScaled(g, "Play", cx, 24, 1.6f * Theme.headingScale(), Theme.text(), false);
+		String sub = minecraft.allowsMultiplayer() ? "Click a server or world to join. Stars pin servers to your home screen."
+				: "Click a world to open it.";
+		Ui.textRight(g, Ui.ellipsize(sub, mainW - 120), mainX + mainW - 22, 30, Theme.textFaint());
 	}
 
 	private void renderAbout(GuiGraphics g) {
@@ -413,7 +699,7 @@ public final class VantaTitleScreen extends VantaScreen {
 				"Fabric Loader " + VantaInfo.loaderVersion() + "  -  Fabric API " + VantaInfo.fabricApiVersion(),
 				"",
 				"Press " + vanta.input.VantaKeys.menuKeyName() + " in game to open the client menu.",
-				"Works offline. No account, no telemetry; settings live in config/vanta.",
+				"No account, no telemetry; settings live in config/vanta. Region lookup can be turned off.",
 				"VANTA only changes visuals and menus. It never clicks, aims or changes reach.",
 				"",
 				CompatDetector.detected().isEmpty() ? "No known optimization mods detected."
@@ -429,12 +715,31 @@ public final class VantaTitleScreen extends VantaScreen {
 
 	@Override
 	protected boolean onClick(double mx, double my, int button) {
-		if (button != 0) return false;
 		float open = openProgress();
 		int slide = Math.round((1f - open) * 16f * Theme.animationDistance());
+		for (Row r : rows) {
+			int rx = r.x() + slide;
+			if (!Ui.inside(mx, my, rx, r.y(), r.w(), r.h())) continue;
+			if (button == 1 && r.server() != null && page == Page.PLAY && serverTab == ServerTab.RECENT) {
+				QuickPlay.removeRecent(r.server().ip());
+				layout();
+				return true;
+			}
+			if (button != 0) return false;
+			MenuSettings.click();
+			if (r.star() && Ui.inside(mx, my, rx + r.w() - STAR_W - 2, r.y(), STAR_W + 2, r.h())) {
+				QuickPlay.toggleFavorite(r.server().name(), r.server().ip());
+				layout();
+			} else if (r.server() != null) {
+				joinServer(r.server());
+			} else {
+				joinWorld(r.world());
+			}
+			return true;
+		}
+		if (button != 0) return false;
 		for (Btn b : buttons) {
-			boolean inMain = !(b.x() >= sidebarX && b.x() < sidebarX + sidebarW && sidebarW > 0);
-			int bx = inMain ? b.x() + slide : b.x();
+			int bx = inMain(b.x()) ? b.x() + slide : b.x();
 			if (b.enabled() && Ui.inside(mx, my, bx, b.y(), b.w(), b.h())) {
 				MenuSettings.click();
 				b.action().run();
@@ -445,14 +750,36 @@ public final class VantaTitleScreen extends VantaScreen {
 	}
 
 	@Override
+	protected boolean onScroll(double mx, double my, double amount) {
+		if (page != Page.PLAY || serverTotal <= serverRowsFit) return false;
+		if (!Ui.inside(mx, my, serverListX, serverListY, serverListW + 8, serverListH)) return false;
+		int before = serverScroll;
+		serverScroll = Math.max(0, Math.min(serverTotal - serverRowsFit, serverScroll - (int) Math.signum(amount)));
+		if (serverScroll != before) layout();
+		return true;
+	}
+
+	@Override
 	public boolean keyPressed(KeyEvent event) {
-		if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE && page != Page.HOME) {
+		int key = event.key();
+		if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE && page != Page.HOME) {
 			setPage(Page.HOME);
 			return true;
 		}
 		if (vanta.input.VantaKeys.isMenuKey(event)) {
 			openMenu(MenuPage.HOME);
 			return true;
+		}
+		// 1-9 join favorites (home screen and the Favorites tab)
+		if (key >= org.lwjgl.glfw.GLFW.GLFW_KEY_1 && key <= org.lwjgl.glfw.GLFW.GLFW_KEY_9 && minecraft.allowsMultiplayer()
+				&& (page == Page.HOME || page == Page.PLAY && serverTab == ServerTab.FAVORITES)) {
+			int i = key - org.lwjgl.glfw.GLFW.GLFW_KEY_1;
+			List<QuickPlay.Entry> favs = QuickPlay.favorites();
+			if (i < favs.size()) {
+				MenuSettings.click();
+				joinServer(favs.get(i));
+				return true;
+			}
 		}
 		return super.keyPressed(event);
 	}
@@ -468,7 +795,7 @@ public final class VantaTitleScreen extends VantaScreen {
 	@Override
 	public boolean isPauseScreen() { return false; }
 
-	/** Re-run layout when settings that affect it change (e.g. after returning from the menu). */
+	/** Re-run layout when settings or lists that affect it change (e.g. after returning from the menu). */
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
 		int sig = layoutSignature();
@@ -491,6 +818,10 @@ public final class VantaTitleScreen extends VantaScreen {
 		h = h * 31 + c.buttonHeight.value();
 		h = h * 31 + c.buttonSpacing.value();
 		h = h * 31 + (Theme.SHOW_LOGO.on() ? 1 : 0);
+		h = h * 31 + (c.quickJoin.on() ? 1 : 0);
+		h = h * 31 + System.identityHashCode(QuickPlay.recentWorlds());
+		h = h * 31 + QuickPlay.favorites().size();
+		h = h * 31 + QuickPlay.recent().size();
 		return h;
 	}
 }

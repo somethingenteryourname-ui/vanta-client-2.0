@@ -69,6 +69,12 @@ public final class ModuleRegistry {
 		add(new BlockOutlineModule());
 		add(new ScreenEffectsModule());
 		add(new HitboxesModule());
+		add(new vanta.modules.impl.NametagsModule());
+		add(new vanta.modules.impl.DamageIndicatorsModule());
+		add(new vanta.modules.impl.HitColorModule());
+		add(new vanta.modules.impl.ItemPhysicsModule());
+		add(new vanta.modules.impl.TimeSkyModule());
+		add(new vanta.modules.impl.WeatherModule());
 		// PvP
 		add(new SprintStatusWidget());
 		add(new KeystrokesWidget());
@@ -77,6 +83,8 @@ public final class ModuleRegistry {
 		add(new ComboWidget());
 		add(new ArmorStatusWidget());
 		add(new CombatCounterWidget());
+		add(new vanta.hud.widgets.ItemCooldownWidget());
+		add(new vanta.modules.impl.TotemPopsModule());
 		// HUD
 		add(new FpsWidget());
 		add(new FrameTimeWidget());
@@ -88,13 +96,21 @@ public final class ModuleRegistry {
 		add(new ClockWidget());
 		add(new SpeedWidget());
 		add(new ServerWidget());
+		add(new vanta.hud.widgets.MinimapWidget());
+		add(new vanta.waypoints.WaypointsModule());
 		// Interface / QoL
 		TITLE_SCREEN = add(new TitleScreenModule());
+		add(new vanta.menu.MenuStyleModule());
 		add(new HudTweaksModule());
+		add(new vanta.modules.impl.InfoPanelModule());
+		add(new vanta.modules.impl.ScoreboardModule());
+		add(new vanta.modules.impl.TabListModule());
+		add(new vanta.modules.impl.NickHiderModule());
 		add(new ShulkerPreviewModule());
 		add(new DeathCoordsModule());
 		add(new AutoPerspectiveModule());
 		add(new AutoTextModule());
+		add(new vanta.modules.impl.AutoReconnectModule());
 	}
 
 	private static <M extends Module> M add(M module) {
