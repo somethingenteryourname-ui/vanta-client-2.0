@@ -954,18 +954,8 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		boolean labels = Theme.SIDEBAR_LABELS.on();
 		boolean icons = Theme.SIDEBAR_ICONS.on() || !labels;
 		if (Theme.SHOW_LOGO.on() && labels) {
-			String name = Theme.clientName();
-			float s = Math.min(1.6f * Theme.headingScale(), (sidebarW - 18) / (float) Math.max(1, Ui.width(name)));
-			if (Theme.ACCENT_MODE.get() == Theme.AccentMode.CHROMA) {
-				g.pose().pushMatrix();
-				g.pose().translate(x + 10, py + 10);
-				g.pose().scale(s);
-				Ui.chromaText(g, name, 0, 0, false);
-				g.pose().popMatrix();
-			} else {
-				Ui.textScaled(g, name, x + 10, py + 10, s, Theme.accent(), false);
-			}
-			Ui.accentFill(g, x + 10, py + 10 + Math.round(9 * s) + 2, Math.min(sidebarW - 20, 18), 2, 0, 0f);
+			int size = vanta.branding.Logo.fit(sidebarW - 20, Math.round(20 * Theme.headingScale()), true);
+			vanta.branding.Logo.draw(g, x + 10, py + 6, size, true, openedAt);
 		}
 		int navY = py + navTop;
 		MenuPage active = moduleView != null ? (moduleView == ModuleRegistry.CROSSHAIR ? MenuPage.CROSSHAIR : MenuPage.MODULES) : page;

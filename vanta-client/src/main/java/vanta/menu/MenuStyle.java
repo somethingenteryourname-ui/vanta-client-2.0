@@ -95,9 +95,6 @@ public final class MenuStyle {
 	public static void cornerLogo(GuiGraphics g) {
 		MenuStyleModule m = MenuStyleModule.get();
 		if (m == null || !m.listLogo.on()) return;
-		String name = Theme.clientName();
-		if (Theme.ACCENT_MODE.get() == Theme.AccentMode.CHROMA) Ui.chromaText(g, name, 8, 8, true);
-		else g.drawString(Ui.font(), name, 8, 8, Theme.accent(), true);
-		Ui.accentFill(g, 8, 19, Math.min(18, Ui.width(name)), 1, 0, 0f);
+		vanta.branding.Logo.draw(g, 7, 5, 14, true, 0);
 	}
 }

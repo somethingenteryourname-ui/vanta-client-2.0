@@ -27,8 +27,10 @@ import vanta.modules.impl.ClientBadgeModule;
  * Nothing is guessed: without one of those, only your own badge shows.
  */
 public final class VantaUsers {
-	/** Private-use character drawn with the VANTA badge font (assets/vanta/font/badge.json). */
-	public static final String GLYPH = "";
+	/** First of 12 private-use characters in the VANTA badge font (assets/vanta/font/badge.json). */
+	public static final char GLYPH = '\uE100';
+	private static final int SHINE_FRAMES = 11;
+	private static final long SHINE_PERIOD = 3600, SHINE_STEP = 75;
 	private static final FontDescription BADGE_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("vanta", "badge"));
 
 	private static final Set<UUID> FROM_SERVER = ConcurrentHashMap.newKeySet();
@@ -97,14 +99,27 @@ public final class VantaUsers {
 		return all.size();
 	}
 
-	/** The badge glyph in your theme's accent color. */
+	/**
+	 * The badge glyph in your theme's accent color. Every few seconds a shine sweeps across
+	 * it: the font holds 12 frames (still + 11 shine steps) and the current one is picked by time.
+	 */
 	public static MutableComponent badge() {
-		int rgb = Theme.accent() & 0xFFFFFF;
-		return Component.literal(GLYPH).withStyle(s -> s.withFont(BADGE_FONT).withColor(rgb));
+		int rgb = (Theme.ACCENT_MODE.get() == Theme.AccentMode.CHROMA ? Theme.chroma(0f) : Theme.accent()) & 0xFFFFFF;
+		int frame = 0;
+		if (!Theme.reducedMotion()) {
+			long phase = System.currentTimeMillis() % SHINE_PERIOD;
+			if (phase < SHINE_FRAMES * SHINE_STEP) frame = 1 + (int) (phase / SHINE_STEP);
+		}
+		String glyph = String.valueOf((char) (GLYPH + frame));
+		return Component.literal(glyph).withStyle(s -> s.withFont(BADGE_FONT).withColor(rgb));
 	}
 
-	/** "badge + space + name". */
+	/**
+	 * "badge + space + name". The three parts are siblings under an empty parent: children
+	 * inherit their parent's style in Minecraft, so appending the name to the badge itself
+	 * would draw the name in the badge font (every letter a missing-glyph box).
+	 */
 	public static MutableComponent withBadge(Component name) {
-		return badge().append(Component.literal(" ")).append(name);
+		return Component.empty().append(badge()).append(Component.literal(" ")).append(name);
 	}
 }

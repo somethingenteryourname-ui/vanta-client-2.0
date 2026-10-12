@@ -57,6 +57,7 @@ public final class VantaTitleScreen extends VantaScreen {
 
 	private static final int STAR_W = 16;
 
+	private final long createdAt = System.currentTimeMillis();
 	private Page page = Page.HOME;
 	private ServerTab serverTab;
 	private int serverScroll;
@@ -417,7 +418,10 @@ public final class VantaTitleScreen extends VantaScreen {
 		if (sidebarW > 0) {
 			Ui.rect(g, sidebarX, 0, sidebarW, vh, Theme.sidebar());
 			Ui.rect(g, cfg().sidebarSide.get() == TitleScreenModule.Side.RIGHT ? sidebarX : sidebarX + sidebarW - 1, 0, 1, vh, Theme.border());
-			if (showSidebarLogo()) drawLogo(g, sidebarX + 10, 12, Math.min(1.7f * Theme.headingScale(), (sidebarW - 20) / (float) Ui.width(Theme.clientName())));
+			if (showSidebarLogo()) {
+				int size = vanta.branding.Logo.fit(sidebarW - 20, Math.round(22 * Theme.headingScale()), true);
+				vanta.branding.Logo.draw(g, sidebarX + 10, 8, size, true, createdAt);
+			}
 		}
 
 		g.pose().pushMatrix();
@@ -555,19 +559,9 @@ public final class VantaTitleScreen extends VantaScreen {
 		return used;
 	}
 
+	/** The animated VANTA logo; {@code scale} matches the old text-logo sizes (3.2 = header). */
 	private void drawLogo(GuiGraphics g, int x, int y, float scale) {
-		String name = Theme.clientName();
-		if (Theme.ACCENT_MODE.get() == Theme.AccentMode.CHROMA) {
-			g.pose().pushMatrix();
-			g.pose().translate(x, y);
-			g.pose().scale(scale);
-			Ui.chromaText(g, name, 0, 0, false);
-			g.pose().popMatrix();
-		} else {
-			Ui.textScaled(g, name, x, y, scale, Theme.accent(), false);
-		}
-		int lineY = y + Math.round(9 * scale) + 2;
-		Ui.hGradient(g, x, lineY, Math.max(10, Math.round(Ui.width(name) * scale * 0.35f)), 2, Theme.accent(), Theme.secondary());
+		vanta.branding.Logo.draw(g, x, y, Math.round(11.5f * scale), true, createdAt);
 	}
 
 	private void drawButton(GuiGraphics g, Btn b, int x, boolean hov) {

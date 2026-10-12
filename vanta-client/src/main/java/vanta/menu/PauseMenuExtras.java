@@ -55,7 +55,10 @@ public final class PauseMenuExtras {
 		wasInWorld = inWorld;
 	}
 
+	private static long openedAt;
+
 	private static void setup(Minecraft mc, Screen screen, int width, int height) {
+		openedAt = System.currentTimeMillis();
 		MenuStyleModule m = MenuStyleModule.get();
 		if (m == null || !m.isEnabled() || !m.pause.on()) return;
 		List<AbstractWidget> buttons = Screens.getButtons(screen);
@@ -95,16 +98,7 @@ public final class PauseMenuExtras {
 		Ui.roundOutline(g, x, y, w, h, Theme.radius(), Theme.border());
 		Ui.accentFill(g, x, y, w, 2, 0, 0f);
 
-		String name = Theme.clientName();
-		if (Theme.ACCENT_MODE.get() == Theme.AccentMode.CHROMA) {
-			g.pose().pushMatrix();
-			g.pose().translate(x + 8, y + 9);
-			g.pose().scale(1.5f);
-			Ui.chromaText(g, name, 0, 0, false);
-			g.pose().popMatrix();
-		} else {
-			Ui.textScaled(g, name, x + 8, y + 9, 1.5f, Theme.accent(), false);
-		}
+		vanta.branding.Logo.draw(g, x + 8, y + 6, vanta.branding.Logo.fit(w - 16, 18, true), true, openedAt);
 
 		ServerData server = mc.getCurrentServer();
 		String where = server != null ? server.ip : mc.hasSingleplayerServer() ? "Singleplayer" : "-";
