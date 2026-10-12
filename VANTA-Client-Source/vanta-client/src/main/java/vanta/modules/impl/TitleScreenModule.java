@@ -61,7 +61,7 @@ public final class TitleScreenModule extends Module {
 	public final BoolSetting imageMotion = setting(new BoolSetting(key("image_motion"), "Slow pan and zoom",
 			"Gently moves image backgrounds (custom and last world). Off with Reduced motion.", true));
 	public final BoolSetting captureWorld = setting(new BoolSetting(key("capture_world"), "Remember last world view",
-			"Saves a small picture of the world (no HUD) about once a minute and when you pause, for the Last world background. Stays on your PC.", true));
+			"Saves a small picture of the world (no HUD) when you pause, for the Last world background. Stays on your PC.", true));
 	public final BoolSetting quickJoin = setting(new BoolSetting(key("quick_join"), "Quick join panel",
 			"Favorite servers with live ping and player count, plus recent servers and worlds, on the home screen.", true));
 	public final BoolSetting showInfo = setting(new BoolSetting(key("show_info"), "Show info cards",

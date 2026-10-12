@@ -91,8 +91,24 @@ public final class HudManager {
 				original.render(g, t);
 				return;
 			}
+			if (c.shape.get() == vanta.crosshair.CrosshairModule.Shape.VANILLA) {
+				// Minecraft's own crosshair (and attack indicator), just resized.
+				float s = c.size.value() / 100f;
+				if (s == 1f) {
+					original.render(g, t);
+					return;
+				}
+				float cx = g.guiWidth() / 2f, cy = g.guiHeight() / 2f;
+				g.pose().pushMatrix();
+				g.pose().translate(cx, cy);
+				g.pose().scale(s);
+				g.pose().translate(-cx, -cy);
+				original.render(g, t);
+				g.pose().popMatrix();
+				return;
+			}
 			if (!mc.options.getCameraType().isFirstPerson() && !c.thirdPerson.on()) return;
-			CrosshairRenderer.draw(g, c, g.guiWidth() / 2, g.guiHeight() / 2, false);
+			CrosshairRenderer.drawScaled(g, c, g.guiWidth() / 2, g.guiHeight() / 2, false);
 		};
 	}
 

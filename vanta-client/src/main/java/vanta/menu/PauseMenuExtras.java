@@ -8,8 +8,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
 
@@ -110,12 +108,7 @@ public final class PauseMenuExtras {
 
 		ServerData server = mc.getCurrentServer();
 		String where = server != null ? server.ip : mc.hasSingleplayerServer() ? "Singleplayer" : "-";
-		String ping = "-";
-		ClientPacketListener conn = mc.getConnection();
-		if (conn != null && mc.player != null) {
-			PlayerInfo info = conn.getPlayerInfo(mc.player.getUUID());
-			if (info != null) ping = info.getLatency() + " ms";
-		}
+		String ping = vanta.net.LivePing.text(mc);
 		String region = vanta.net.RegionLookup.current();
 		if (!region.isEmpty() && !region.equals("Local")) ping = ping + " (" + region + ")";
 		long secs = sessionStart == 0 ? 0 : (System.currentTimeMillis() - sessionStart) / 1000;

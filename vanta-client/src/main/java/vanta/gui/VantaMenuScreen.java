@@ -474,7 +474,7 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		}
 		lb.row(presets, 80, 18);
 		section(lb, "Shape and size", null);
-		settingRows(lb, List.of(c.shape, c.length, c.thickness, c.gap, c.dotSize, c.circleRadius));
+		settingRows(lb, List.of(c.shape, c.size, c.length, c.thickness, c.gap, c.dotSize, c.circleRadius));
 		section(lb, "Color", null);
 		settingRows(lb, List.of(c.color, c.chroma, c.outline, c.outlineColor, c.hitColor, c.targetColor));
 		section(lb, "Behavior", null);
@@ -602,8 +602,16 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		lb.row(List.of(new BasicItems.ButtonItem("Menu Style options", false, () -> openModule(ModuleRegistry.byId("menu_style")),
 				"Choose which menus get the VANTA look, the pause info panel, blur and dimming.")), 140, 18);
 
-		section(lb, "Network", "The only thing VANTA ever sends over the internet");
-		settingRows(lb, List.of(vanta.net.RegionLookup.ONLINE));
+		section(lb, "Compatibility", "How VANTA works next to your other Fabric mods");
+		settingRows(lb, List.of(vanta.compat.CompatDetector.AVOID_DUPLICATES, vanta.compat.CompatDetector.YIELD_TITLE));
+		if (!CompatDetector.adjusted().isEmpty()) {
+			paragraph(lb, "Turned off this time to avoid duplicates: " + String.join(", ", CompatDetector.adjusted())
+					+ ". Turn them back on in Modules if you prefer VANTA's version.", Theme.textFaint());
+		}
+		for (CompatDetector.Detected d : CompatDetector.detected()) paragraph(lb, d.name() + ": " + d.note(), Theme.textDim());
+
+		section(lb, "Network", "Everything VANTA can send over the internet (all optional)");
+		settingRows(lb, List.of(vanta.net.RegionLookup.ONLINE, vanta.net.LivePing.LIVE, vanta.net.LivePing.INTERVAL));
 
 		section(lb, "Keys", "Change them in Options > Controls > Key Binds > VANTA Client");
 		lb.full(new BasicItems.KeyValueRow("Open this menu", VantaKeys::menuKeyName, 0), 13);
@@ -660,7 +668,7 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		paragraph(lb, ModuleRegistry.all().size() + " modules, including zoom, freelook, fullbright, custom crosshair, block outline, "
 				+ "hitboxes, nametags, damage indicators, hit color, item physics, time and sky, weather, minimap, waypoints, "
 				+ "scoreboard and tab list restyles, a clean F3 panel, totem pop counter, item cooldowns, keystrokes, CPS, reach, combo, "
-				+ "armor status, FPS, ping with region, auto reconnect, nick hider and the home screen with quick join.\n"
+				+ "armor status, FPS, measured ping with region, auto reconnect, nick hider, client badge and the home screen with quick join.\n"
 				+ "Plus performance presets with undo, profiles, saved themes and a deeply customizable interface.", 0);
 	}
 

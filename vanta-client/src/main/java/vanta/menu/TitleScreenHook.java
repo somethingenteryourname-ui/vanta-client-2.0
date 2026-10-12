@@ -26,7 +26,8 @@ public final class TitleScreenHook {
 		if (allowedVanilla.get() == screen) return screen;
 		try {
 			if (ModuleRegistry.TITLE_SCREEN == null || !ModuleRegistry.TITLE_SCREEN.isEnabled()) return screen;
-			if (net.minecraft.client.Minecraft.getInstance().isDemo()) return screen; // demo mode keeps vanilla's demo buttons
+			if (net.minecraft.client.Minecraft.getInstance().isDemo()) return screen;
+			if (vanta.compat.CompatDetector.yieldTitleScreen()) return screen; // FancyMenu & co. own the title screen // demo mode keeps vanilla's demo buttons
 			return new VantaTitleScreen();
 		} catch (Throwable t) {
 			VantaClient.LOG.error("[VANTA] Could not open the VANTA home screen, falling back to vanilla", t);

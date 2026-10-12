@@ -1,8 +1,6 @@
 package vanta.hud.widgets;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.client.multiplayer.PlayerInfo;
 
 import vanta.config.BoolSetting;
 import vanta.hud.TextHudModule;
@@ -27,13 +25,11 @@ public final class PingWidget extends TextHudModule {
 		if (now < nextRefresh) return;
 		nextRefresh = now + 1000;
 		Minecraft mc = Minecraft.getInstance();
-		ClientPacketListener connection = mc.getConnection();
-		if (connection == null || mc.player == null) {
+		if (mc.getConnection() == null || mc.player == null) {
 			setLine("Ping", "-");
 			return;
 		}
-		PlayerInfo info = connection.getPlayerInfo(mc.player.getUUID());
-		String ping = info == null ? "-" : info.getLatency() + " ms";
+		String ping = vanta.net.LivePing.text(mc);
 		String region = showRegion.on() ? RegionLookup.current() : "";
 		if (region.isEmpty()) {
 			setLine("Ping", ping);

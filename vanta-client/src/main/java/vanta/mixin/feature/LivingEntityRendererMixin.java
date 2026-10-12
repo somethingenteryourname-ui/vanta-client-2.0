@@ -12,21 +12,32 @@ import net.minecraft.world.entity.EntityAttachment;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 
+import vanta.modules.impl.ClientBadgeModule;
 import vanta.modules.impl.NametagsModule;
+import vanta.social.VantaUsers;
 
-/** Nametags: your own nametag in third person, and health / totem pops after player names. */
+/**
+ * Client Badge / Nametags: your own nametag in F5 and freelook, the VANTA logo in front of
+ * VANTA players' names, and health / totem pops after names. Other players' nametags still
+ * appear only when vanilla would show them.
+ */
 @Mixin(LivingEntityRenderer.class)
 abstract class LivingEntityRendererMixin {
 	@Inject(method = "extractRenderState(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;F)V",
 			at = @At("TAIL"))
 	private void vanta$nametag(LivingEntity entity, LivingEntityRenderState state, float partialTicks, CallbackInfo ci) {
-		if (!NametagsModule.active() || !(entity instanceof Player player)) return;
+		if (!(entity instanceof Player player)) return;
+		boolean badge = ClientBadgeModule.active();
+		boolean tags = NametagsModule.active();
+		if (!badge && !tags) return;
 		Minecraft mc = Minecraft.getInstance();
-		if (state.nameTag == null && entity == mc.player && NametagsModule.showOwn() && Minecraft.renderNames()
-				&& !entity.isInvisible() && !mc.options.hideGui) {
+		if (state.nameTag == null && entity == mc.player && (ClientBadgeModule.showOwnNametag() || NametagsModule.showOwn())
+				&& Minecraft.renderNames() && !entity.isInvisible() && !mc.options.hideGui) {
 			state.nameTag = entity.getDisplayName();
 			state.nameTagAttachment = entity.getAttachments().getNullable(EntityAttachment.NAME_TAG, 0, entity.getYRot(partialTicks));
 		}
-		if (state.nameTag != null) state.nameTag = NametagsModule.decorate(player, state.nameTag);
+		if (state.nameTag == null) return;
+		if (tags) state.nameTag = NametagsModule.decorate(player, state.nameTag);
+		if (ClientBadgeModule.badgeFor(player.getUUID())) state.nameTag = VantaUsers.withBadge(state.nameTag);
 	}
 }

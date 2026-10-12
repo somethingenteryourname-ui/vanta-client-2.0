@@ -80,7 +80,7 @@ public final class NametagsModule extends Module {
 			};
 			out.append(Component.literal(" " + text).withColor(healthColor(p.getHealth() / max, p.getAbsorptionAmount() > 0)));
 		}
-		if (pops > 0) out.append(Component.literal(" -" + pops).withColor(0xFFAA00));
+		if (pops > 0) out.append(Component.literal(" -" + pops).withColor(vanta.branding.Theme.accent() & 0xFFFFFF));
 		return out;
 	}
 

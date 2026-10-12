@@ -8,20 +8,30 @@ import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
 
+import vanta.branding.Theme;
+import vanta.combat.TotemTracker;
+import vanta.modules.impl.ClientBadgeModule;
 import vanta.modules.impl.TabListModule;
+import vanta.modules.impl.TotemPopsModule;
+import vanta.social.VantaUsers;
 
-/** Tab List: ping numbers instead of bars, a bit of extra width for them, and theme colors. */
+/**
+ * Tab list: ping numbers instead of bars, a themed -N totem pop count next to the ping,
+ * the VANTA logo before VANTA players' names, extra width for all that, and theme colors.
+ */
 @Mixin(PlayerTabOverlay.class)
 abstract class PlayerTabOverlayMixin {
 	@ModifyConstant(method = "render", constant = @Constant(intValue = 13))
 	private int vanta$widerSlots(int original) {
-		return original + TabListModule.extraWidth();
+		return original + TabListModule.extraWidth() + TotemPopsModule.tabExtraWidth();
 	}
 
 	@WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V"))
@@ -29,14 +39,33 @@ abstract class PlayerTabOverlayMixin {
 		original.call(g, x0, y0, x1, y1, TabListModule.recolor(color));
 	}
 
+	@Inject(method = "getNameForDisplay", at = @At("RETURN"), cancellable = true)
+	private void vanta$badge(PlayerInfo info, CallbackInfoReturnable<Component> cir) {
+		if (ClientBadgeModule.inTabList() && cir.getReturnValue() != null && ClientBadgeModule.badgeFor(info.getProfile().id())) {
+			cir.setReturnValue(VantaUsers.withBadge(cir.getReturnValue()));
+		}
+	}
+
 	@Inject(method = "renderPingIcon", at = @At("HEAD"), cancellable = true)
-	private void vanta$pingNumber(GuiGraphics g, int slotWidth, int xo, int yo, PlayerInfo info, CallbackInfo ci) {
-		if (!TabListModule.pingNumbers()) return;
-		int ms = info.getLatency();
-		String text = ms < 0 ? "?" : String.valueOf(ms);
+	private void vanta$pingAndPops(GuiGraphics g, int slotWidth, int xo, int yo, PlayerInfo info, CallbackInfo ci) {
+		boolean numbers = TabListModule.pingNumbers();
+		int pops = TotemPopsModule.inTab() ? TotemTracker.pops(info.getProfile().id()) : 0;
+		if (!numbers && pops == 0) return;
 		Minecraft mc = Minecraft.getInstance();
-		int w = mc.font.width(text);
-		g.drawString(mc.font, text, xo + slotWidth - w - 1, yo, TabListModule.pingColor(ms), true);
-		ci.cancel();
+		int right = xo + slotWidth - 1;
+		if (numbers) {
+			int ms = info.getLatency();
+			String text = ms < 0 ? "?" : String.valueOf(ms);
+			int w = mc.font.width(text);
+			g.drawString(mc.font, text, right - w, yo, TabListModule.pingColor(ms), true);
+			right -= w + 3;
+		} else {
+			right = xo + slotWidth - 13; // left of vanilla's 10 px ping bars
+		}
+		if (pops > 0) {
+			String text = "-" + pops;
+			g.drawString(mc.font, text, right - mc.font.width(text), yo, Theme.accent() | 0xFF000000, true);
+		}
+		if (numbers) ci.cancel();
 	}
 }

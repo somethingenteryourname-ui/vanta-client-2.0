@@ -48,7 +48,6 @@ public final class BackgroundImages {
 	private static final long GIF_MAX_PIXELS = 18_000_000L; // ~72 MB of frames at most
 	private static final int STILL_MAX_SIDE = 4096;
 	private static final long MAX_FILE_BYTES = 40L * 1024 * 1024;
-	private static final long CAPTURE_INTERVAL_MS = 60_000L;
 
 	private static final Slot CUSTOM = new Slot(Identifier.fromNamespaceAndPath("vanta", "dynamic/background"));
 	private static final Slot LAST_WORLD = new Slot(Identifier.fromNamespaceAndPath("vanta", "dynamic/last_world"));
@@ -367,17 +366,21 @@ public final class BackgroundImages {
 
 	/**
 	 * Called right after the world is rendered (before the HUD and menus), so the shot is
-	 * a clean view of the world. Runs at most once a minute and only on fully loaded terrain.
+	 * a clean view of the world. Only after you pause, and only on fully loaded terrain.
 	 */
 	public static void afterWorldRendered(Minecraft mc) {
 		TitleScreenModule c = ModuleRegistry.TITLE_SCREEN;
 		if (c == null || !c.captureWorld.on() || mc.level == null || mc.player == null || capturing) {
-			if (mc.level == null) worldSince = 0;
+			if (mc.level == null) {
+				worldSince = 0;
+			}
 			return;
 		}
 		long now = Util.getMillis();
 		if (worldSince == 0) worldSince = now;
-		boolean due = captureRequested ? now - lastCapture > 5_000L : now - lastCapture > CAPTURE_INTERVAL_MS;
+		// Only when you pause: reading the frame back costs a few milliseconds, so it never
+		// happens while you're actively playing.
+		boolean due = captureRequested && now - lastCapture > 5_000L;
 		if (!due || now - worldSince < 8_000L) return;
 		if (mc.levelRenderer.countRenderedSections() <= 10 || !mc.levelRenderer.hasRenderedAllSections()) return;
 		RenderTarget target = mc.getMainRenderTarget();

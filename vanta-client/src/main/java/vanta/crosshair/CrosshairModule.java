@@ -16,7 +16,7 @@ import vanta.modules.Module;
 public final class CrosshairModule extends Module {
 	public enum Shape implements Labeled {
 		CROSS("Cross"), CROSS_DOT("Cross + dot"), DOT("Dot"), CIRCLE("Circle"), CIRCLE_DOT("Circle + dot"),
-		T_SHAPE("T"), X("X"), PLUS_GAP("Brackets");
+		T_SHAPE("T"), X("X"), PLUS_GAP("Brackets"), VANILLA("Vanilla look");
 		private final String label;
 		Shape(String label) { this.label = label; }
 		@Override public String label() { return label; }
@@ -37,11 +37,13 @@ public final class CrosshairModule extends Module {
 	}
 
 	public final ChoiceSetting<Shape> shape = setting(new ChoiceSetting<>(key("shape"), "Shape", "The crosshair's shape.", Shape.CROSS));
-	public final IntSetting length = setting(new IntSetting(key("length"), "Arm length", "Length of each line.", 4, 1, 15, 1, "px"));
-	public final IntSetting thickness = setting(new IntSetting(key("thickness"), "Thickness", "Line thickness.", 1, 1, 5, 1, "px"));
-	public final IntSetting gap = setting(new IntSetting(key("gap"), "Gap", "Empty space in the middle.", 2, 0, 12, 1, "px"));
-	public final IntSetting dotSize = setting(new IntSetting(key("dot_size"), "Dot size", "Size of the center dot.", 1, 1, 6, 1, "px"));
-	public final IntSetting circleRadius = setting(new IntSetting(key("circle_radius"), "Circle size", "Radius of circle shapes.", 5, 2, 14, 1, "px"));
+	public final IntSetting length = setting(new IntSetting(key("length"), "Arm length", "Length of each line.", 4, 1, 30, 1, "px"));
+	public final IntSetting thickness = setting(new IntSetting(key("thickness"), "Thickness", "Line thickness.", 1, 1, 8, 1, "px"));
+	public final IntSetting gap = setting(new IntSetting(key("gap"), "Gap", "Empty space in the middle.", 2, 0, 20, 1, "px"));
+	public final IntSetting dotSize = setting(new IntSetting(key("dot_size"), "Dot size", "Size of the center dot.", 1, 1, 10, 1, "px"));
+	public final IntSetting circleRadius = setting(new IntSetting(key("circle_radius"), "Circle size", "Radius of circle shapes.", 5, 2, 24, 1, "px"));
+	public final IntSetting size = setting(new IntSetting(key("size"), "Overall size",
+			"Scales the whole crosshair, including the Vanilla look shape. 100% is normal.", 100, 50, 400, 10, "%"));
 	public final ColorSetting color = setting(new ColorSetting(key("color"), "Color", "Crosshair color. Supports transparency (#AARRGGBB).", 0xFFFFFFFF, true));
 	public final BoolSetting outline = setting(new BoolSetting(key("outline"), "Outline", "Dark border around the lines for visibility.", true));
 	public final ColorSetting outlineColor = setting(new ColorSetting(key("outline_color"), "Outline color", "Color of the border.", 0xB0000000, true));

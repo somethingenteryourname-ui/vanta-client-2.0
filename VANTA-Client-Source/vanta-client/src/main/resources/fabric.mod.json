@@ -3,7 +3,7 @@
 	"id": "vanta",
 	"version": "${version}",
 	"name": "VANTA Client",
-	"description": "A full client experience inside one Fabric mod: launcher-style home screen, RIGHT SHIFT client menu, 30+ modules, FPS presets and boosters, HUD and crosshair editors, profiles and a deeply customizable theme.",
+	"description": "A full client experience inside one Fabric mod: launcher-style home screen, RIGHT SHIFT client menu, 50+ modules, FPS presets, HUD and crosshair editors, waypoints, minimap, profiles and a deeply customizable theme. Works alongside Sodium, Iris, Mod Menu and other Fabric mods.",
 	"authors": [
 		"VANTA"
 	],
@@ -20,7 +20,7 @@
 		"vanta.features.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.19.5",
+		"fabricloader": ">=0.16.0",
 		"minecraft": "~1.21.11",
 		"java": ">=21",
 		"fabric-api": "*"

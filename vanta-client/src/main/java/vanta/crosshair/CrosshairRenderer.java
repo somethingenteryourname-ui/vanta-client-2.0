@@ -3,6 +3,8 @@ package vanta.crosshair;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 
 import vanta.branding.Theme;
@@ -13,6 +15,22 @@ public final class CrosshairRenderer {
 	private static float spread;
 
 	private CrosshairRenderer() {
+	}
+
+	private static final Identifier VANILLA_SPRITE = Identifier.withDefaultNamespace("hud/crosshair");
+
+	/** Like {@link #draw} but applies the Overall size setting around the center. */
+	public static void drawScaled(GuiGraphics g, CrosshairModule c, int cx, int cy, boolean preview) {
+		float s = c.size.value() / 100f;
+		if (s == 1f) {
+			draw(g, c, cx, cy, preview);
+			return;
+		}
+		g.pose().pushMatrix();
+		g.pose().translate(cx, cy);
+		g.pose().scale(s);
+		draw(g, c, 0, 0, preview);
+		g.pose().popMatrix();
 	}
 
 	/** Draw centered on (cx, cy). preview = true when drawn in the editor. */
@@ -53,6 +71,7 @@ public final class CrosshairRenderer {
 			case T_SHAPE -> cross(g, cx, cy, len, th, gap, half, color, outline, false);
 			case X -> diagonal(g, cx, cy, len, th, gap, color, outline);
 			case PLUS_GAP -> brackets(g, cx, cy, len, th, gap + 2, color, outline);
+			case VANILLA -> g.blitSprite(RenderPipelines.GUI_TEXTURED, VANILLA_SPRITE, cx - 7, cy - 7, 15, 15);
 		}
 
 		if (!preview && c.attackIndicator.on() && mc.player != null) {

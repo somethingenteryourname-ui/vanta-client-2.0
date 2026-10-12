@@ -10,6 +10,7 @@
 		"BlockEntityRenderDispatcherMixin",
 		"CameraMixin",
 		"ClientPacketListenerMixin",
+		"DebugScreenOverlayAccessor",
 		"DebugScreenOverlayMixin",
 		"DisconnectedScreenAccessor",
 		"EditBoxMixin",
@@ -31,6 +32,7 @@
 		"ParticleEngineMixin",
 		"PlayerInfoMixin",
 		"PlayerTabOverlayMixin",
+		"ProfilerPieChartAccessor",
 		"ScreenEffectRendererMixin",
 		"ScreenMixin",
 		"StringDecomposerMixin"

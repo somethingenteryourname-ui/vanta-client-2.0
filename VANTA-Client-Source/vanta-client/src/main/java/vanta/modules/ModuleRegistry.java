@@ -106,6 +106,7 @@ public final class ModuleRegistry {
 		add(new vanta.modules.impl.ScoreboardModule());
 		add(new vanta.modules.impl.TabListModule());
 		add(new vanta.modules.impl.NickHiderModule());
+		add(new vanta.modules.impl.ClientBadgeModule());
 		add(new ShulkerPreviewModule());
 		add(new DeathCoordsModule());
 		add(new AutoPerspectiveModule());

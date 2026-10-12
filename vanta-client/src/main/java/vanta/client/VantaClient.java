@@ -49,6 +49,8 @@ public final class VantaClient implements ClientModInitializer {
 		ProfileManager.init();
 		ModuleRegistry.init();
 		vanta.net.RegionLookup.init();
+		CompatDetector.init();
+		vanta.net.LivePing.init();
 		// 2. Load saved values (safe: a broken file falls back to defaults).
 		ConfigManager.get().load();
 		ProfileManager.ensureBuiltIns();
@@ -58,6 +60,7 @@ public final class VantaClient implements ClientModInitializer {
 		HudManager.register();
 		vanta.menu.PauseMenuExtras.register();
 		vanta.modules.impl.AutoReconnectModule.register();
+		vanta.social.VantaUsers.init();
 		CompatDetector.scan();
 		ClientTickEvents.END_CLIENT_TICK.register(VantaClient::onTick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ConfigManager.get().saveIfDirty());
@@ -94,8 +97,14 @@ public final class VantaClient implements ClientModInitializer {
 		}
 		CombatTracker.tick(client);
 		vanta.combat.TotemTracker.tick(client);
+		vanta.social.VantaUsers.tick(client);
 		vanta.menu.PauseMenuExtras.tick(client);
 		vanta.menu.QuickPlay.tick(client);
+		try {
+			vanta.net.LivePing.tick(client);
+		} catch (RuntimeException e) {
+			LOG.debug("[VANTA] Ping measurement failed", e);
+		}
 		if (client.level == null) vanta.waypoints.WorldProjection.invalidate();
 		if (!vanta.waypoints.WaypointsModule.active()) {
 			while (VantaKeys.ADD_WAYPOINT.consumeClick()) {
