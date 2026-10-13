@@ -206,6 +206,10 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 				case VISUALS -> buildVisuals(lb);
 				case HUD -> buildHud(lb);
 				case OPTIMIZATIONS -> buildOptimizations(lb);
+				case CHAT -> buildChat(lb);
+				case COSMETICS -> buildCosmetics(lb);
+				case FRIENDS -> buildFriends(lb);
+				case MODS -> buildMods(lb);
 				case CROSSHAIR -> buildCrosshair(lb);
 				case THEME -> buildTheme(lb);
 				case PROFILES -> buildProfiles(lb);
@@ -302,6 +306,7 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		quick.add(new BasicItems.ButtonItem(() -> "FPS overlay: " + (fps.isEnabled() ? "On" : "Off"), false, fps::toggle, "Show or hide the FPS widget."));
 		quick.add(new BasicItems.ButtonItem("FPS presets", false, () -> openPage(MenuPage.PERFORMANCE), "Max FPS, Competitive, Balanced and more."));
 		quick.add(new BasicItems.ButtonItem("Crosshair", false, () -> openPage(MenuPage.CROSSHAIR), "Design your crosshair."));
+		quick.add(new BasicItems.ButtonItem("Chat", false, () -> openPage(MenuPage.CHAT), "Chat look, timestamps, mentions and filters."));
 		quick.add(new BasicItems.ButtonItem("Profiles", false, () -> openPage(MenuPage.PROFILES), "Switch your whole setup."));
 		quick.add(new BasicItems.ButtonItem("Theme", false, () -> openPage(MenuPage.THEME), "Colors, layout and animation."));
 		lb.row(quick, 92, 18);
@@ -375,6 +380,7 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	private void buildPerformance(LayoutBuilder lb) {
 		section(lb, "Live", "Watch these while you change settings");
 		stats(lb);
+		lb.full(new BasicItems.KeyValueRow("FPS limited by", vanta.performance.FpsControl::reason, 0), 13);
 
 		section(lb, "Presets", "Pick one to see exactly what it changes, then apply. Undo restores your old settings.");
 		List<Item> cards = new ArrayList<>();
@@ -436,6 +442,126 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		moduleCards(lb, modulesIn(Category.VISUALS));
 		section(lb, "Camera and comfort", "Minecraft's own settings");
 		optionRows(lb, VanillaOptions.visuals(this));
+		buildPacks(lb);
+	}
+
+	private void buildPacks(LayoutBuilder lb) {
+		section(lb, "Resource packs", "Switch packs here, then Apply once (Minecraft reloads a single time). Top of the list wins.");
+		List<vanta.packs.PackToggle.Row> rows = vanta.packs.PackToggle.rows();
+		if (rows.isEmpty()) paragraph(lb, "No resource packs found. Put .zip packs in the resource packs folder, then press Refresh.", Theme.textFaint());
+		for (vanta.packs.PackToggle.Row r : rows) {
+			ActionRow row = new ActionRow(() -> r.title() + (r.pending() ? "  (changed)" : ""), r::description, r::on,
+					"Turn this pack on or off. Changes apply when you press Apply.");
+			row.action(r.on() ? "Turn off" : "Turn on", () -> {
+				vanta.packs.PackToggle.toggle(r.id());
+				rebuild();
+			});
+			if (r.on()) row.action("Up", () -> {
+				vanta.packs.PackToggle.raise(r.id());
+				rebuild();
+			});
+			lb.full(row, 26);
+		}
+		List<Item> b = new ArrayList<>();
+		b.add(new BasicItems.ButtonItem(() -> vanta.packs.PackToggle.hasChanges() ? "Apply changes" : "No changes", true, () -> {
+			if (!vanta.packs.PackToggle.hasChanges()) return;
+			vanta.packs.PackToggle.apply();
+			notice("Reloading resource packs...");
+		}, "Reload Minecraft's resources with your pack changes."));
+		b.add(new BasicItems.ButtonItem("Undo changes", false, () -> {
+			vanta.packs.PackToggle.discard();
+			rebuild();
+		}, "Forget the changes you haven't applied."));
+		b.add(new BasicItems.ButtonItem("Open folder", false, () -> openFolder(vanta.packs.PackToggle.folder()), "Add packs by copying them here."));
+		b.add(new BasicItems.ButtonItem("Refresh", false, () -> {
+			vanta.packs.PackToggle.rescan();
+			rebuild();
+		}, "Look for new packs in the folder."));
+		lb.row(b, 92, 18);
+	}
+
+	// ---- Cosmetics
+
+	private void buildCosmetics(LayoutBuilder lb) {
+		vanta.cosmetics.CosmeticsModule c = (vanta.cosmetics.CosmeticsModule) ModuleRegistry.byId("cosmetics");
+		paragraph(lb, "Capes show in third person (F5) and on your inventory player. If your cape doesn't show, turn on Cape in "
+				+ "Options > Skin Customization. Other VANTA players see your cape and trail on servers with the VANTA Bridge plugin, "
+				+ "or when you share a presence server (Client Badge settings).", Theme.textFaint());
+		lb.full(new SettingRow(c.enabledSetting(), this), SettingRow.height());
+		section(lb, "Cape", null);
+		List<Item> capes = new ArrayList<>();
+		for (vanta.cosmetics.Cosmetics.Cape cape : vanta.cosmetics.Cosmetics.Cape.values()) {
+			capes.add(new BasicItems.ButtonItem(() -> (c.cape.get() == cape ? "> " : "") + cape.label(), false, () -> c.cape.set(cape),
+					cape == vanta.cosmetics.Cosmetics.Cape.NONE ? "No cape." : "Wear the " + cape.label() + " cape."));
+		}
+		lb.grid(capes, 80, 18);
+		section(lb, "Trail", "Particles behind you while you move");
+		List<Item> trails = new ArrayList<>();
+		for (vanta.cosmetics.Cosmetics.Trail t : vanta.cosmetics.Cosmetics.Trail.values()) {
+			trails.add(new BasicItems.ButtonItem(() -> (c.trail.get() == t ? "> " : "") + t.label(), false, () -> c.trail.set(t),
+					t == vanta.cosmetics.Cosmetics.Trail.NONE ? "No trail." : t.label() + " follow you."));
+		}
+		lb.grid(trails, 90, 18);
+		section(lb, "Options", null);
+		settingRows(lb, List.of(c.density, c.trailFirstPerson, c.showOthers, c.share));
+		lb.full(new BasicItems.KeyValueRow("VANTA players with cosmetics here", () -> String.valueOf(vanta.cosmetics.Cosmetics.others().size()), 0), 13);
+	}
+
+	// ---- Friends
+
+	private void buildFriends(LayoutBuilder lb) {
+		vanta.friends.FriendsModule f = vanta.friends.FriendsModule.get();
+		lb.full(new SettingRow(f.enabledSetting(), this), SettingRow.height());
+		lb.row(List.of(new BasicItems.ButtonItem("Add a friend", true, () -> minecraft.setScreen(new TextInputScreen(this, "Add a friend",
+				"Their Minecraft name. In game you can also type /friend add <name>.", "", 16, f::add)), "Add someone to your friends list.")), 120, 18);
+		List<String> names = f.names();
+		section(lb, "Friends", names.isEmpty() ? "No friends yet" : names.size() + " friends");
+		for (String n : names) {
+			lb.full(new ActionRow(() -> n, () -> vanta.friends.FriendsModule.isOnline(n) ? "Online on this server" : "Not on this server",
+					() -> vanta.friends.FriendsModule.isOnline(n), "Remove this friend.")
+					.danger("Remove", () -> {
+						f.remove(n);
+						rebuild();
+					}), 26);
+		}
+		section(lb, "Options", null);
+		settingRows(lb, List.of(f.color, f.nametags, f.tabList, f.notify));
+		paragraph(lb, "Commands: /friend add <name>, /friend remove <name>, /friend list. Your list stays on your computer.", Theme.textFaint());
+	}
+
+	// ---- Mods
+
+	private boolean showLibraries;
+
+	private void buildMods(LayoutBuilder lb) {
+		List<vanta.compat.InstalledMods.Entry> mods = vanta.compat.InstalledMods.list();
+		long libs = mods.stream().filter(vanta.compat.InstalledMods.Entry::library).count();
+		lb.row(List.of(
+				new BasicItems.ButtonItem("Open mods folder", false, () -> openFolder(net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("mods")),
+						"Add or remove mods here, then restart Minecraft."),
+				new BasicItems.ButtonItem(() -> showLibraries ? "Hide libraries" : "Show libraries (" + libs + ")", false, () -> {
+					showLibraries = !showLibraries;
+					rebuild();
+				}, "Libraries are parts of other mods (like Fabric API's modules).")), 120, 18);
+		if (!vanta.compat.InstalledMods.modMenuInstalled()) {
+			paragraph(lb, "Tip: install Mod Menu to open other mods' settings from here.", Theme.textFaint());
+		}
+		section(lb, "Installed", (mods.size() - libs) + " mods" + (libs > 0 ? " + " + libs + " libraries" : ""));
+		for (vanta.compat.InstalledMods.Entry e : mods) {
+			if (e.library() && !showLibraries) continue;
+			String sub = (e.description() == null || e.description().isBlank() ? "" : e.description() + "  ")
+					+ (e.authors().isEmpty() ? "" : "by " + e.authors());
+			ActionRow row = new ActionRow(() -> e.name() + "  " + e.version(), () -> sub, null, e.id());
+			if (vanta.compat.InstalledMods.modMenuInstalled()) {
+				row.action("Settings", () -> {
+					net.minecraft.client.gui.screens.Screen sc = vanta.compat.InstalledMods.configScreen(e.id(), this);
+					if (sc != null) minecraft.setScreen(sc);
+					else notice(e.name() + " has no settings screen.");
+				});
+			}
+			if (!e.homepage().isEmpty()) row.action("Website", () -> Util.getPlatform().openUri(e.homepage()));
+			lb.full(row, 26);
+		}
 	}
 
 	// ---- HUD
@@ -455,8 +581,8 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		settingRows(lb, HudStyle.settings());
 		section(lb, "Widgets", "Hidden widgets are not drawn or updated, so they cost nothing");
 		moduleCards(lb, new ArrayList<>(ModuleRegistry.hud()));
-		section(lb, "Vanilla HUD", null);
-		moduleCards(lb, List.of(ModuleRegistry.byId("hud_tweaks")));
+		section(lb, "Vanilla HUD and warnings", null);
+		moduleCards(lb, List.of(ModuleRegistry.byId("hud_tweaks"), ModuleRegistry.byId("durability_warnings")));
 	}
 
 	// ---- Optimizations
@@ -469,15 +595,55 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 				+ "instead of waiting for your ping. VANTA sends exactly the same packets as vanilla. Some servers don't allow these, so check the rules.",
 				Theme.textFaint());
 		settingRows(lb, List.of(o.crystals, o.anchors, o.staticCrystals, o.noDeathAnimation, o.instantSneak));
+		vanta.modules.impl.TotemModule totem = (vanta.modules.impl.TotemModule) ModuleRegistry.byId("totem");
+		if (totem != null) {
+			section(lb, "Totem pops", "Size, see-through style, length, particles and sound of totem pops");
+			lb.full(new SettingRow(totem.enabledSetting(), this), SettingRow.height());
+			settingRows(lb, totem.visibleSettings());
+		}
 		section(lb, "Smoothness", "Less motion and fewer costly effects");
-		settingRows(lb, List.of(o.noMenuBlur, o.noViewBobbing, o.noHurtTilt, o.freeMemory));
+		settingRows(lb, List.of(o.noIdleThrottle, o.noMenuBlur, o.noViewBobbing, o.noHurtTilt, o.freeMemory));
+		lb.full(new BasicItems.KeyValueRow("FPS limited by", vanta.performance.FpsControl::reason, 0), 13);
 		section(lb, "Performance modules", "More ways to raise FPS; presets live on the Performance page");
 		List<Module> mods = new ArrayList<>();
-		for (String id : new String[] {"particles", "entity_culling", "background_fps", "screen_effects"}) {
+		for (String id : new String[] {"particles", "entity_culling", "background_fps", "screen_fps", "dynamic_render_distance", "screen_effects"}) {
 			Module m = ModuleRegistry.byId(id);
 			if (m != null) mods.add(m);
 		}
 		moduleCards(lb, mods);
+	}
+
+	// ---- Chat
+
+	private void buildChat(LayoutBuilder lb) {
+		vanta.chat.ChatModule c = vanta.chat.ChatModule.instance();
+		lb.full(new vanta.gui.items.ChatPreview(c), 92);
+		lb.full(new SettingRow(c.enabledSetting(), this), SettingRow.height());
+		section(lb, "Look", "Your theme colors, client name and logo, in singleplayer and on servers");
+		settingRows(lb, List.of(c.style, c.panelOpacity, c.rounded, c.accentBar, c.width, c.fullWhileTyping, c.smooth));
+		section(lb, "Logo watermark", "Your logo and client name faded into the chat background");
+		settingRows(lb, List.of(c.watermark, c.watermarkOpacity, c.watermarkSize, c.watermarkPosition, c.watermarkAnimation,
+				c.watermarkWhileTyping));
+		section(lb, "Input box", null);
+		settingRows(lb, List.of(c.inputBox, c.inputLogo));
+		section(lb, "Tools", "Tabs, search (Ctrl+F), right-click to copy, player heads and emoji");
+		settingRows(lb, List.of(c.tabs, c.privateWords, c.partyWords, c.search, c.copy, c.heads, c.emojiButton, c.emojiCodes));
+		section(lb, "Messages", null);
+		settingRows(lb, List.of(c.timestamps, c.timeFormat, c.stampColor, c.stack, c.history, c.fadeSeconds, c.neverFade, c.keepOnLeave));
+		section(lb, "Mentions", "When someone says your name");
+		settingRows(lb, List.of(c.mentions, c.mentionSound, c.mentionWords));
+		section(lb, "Filters", "Hidden messages never show up in chat");
+		settingRows(lb, List.of(c.mutedWords, c.hideJoinLeave, c.hideBlank));
+		section(lb, "Minecraft chat options", "The same settings as Options > Chat Settings");
+		optionRows(lb, VanillaOptions.chat(this));
+		lb.space(4);
+		lb.row(List.of(
+				new BasicItems.ButtonItem("Clear chat", false, () -> {
+					if (minecraft.gui != null) minecraft.gui.getChat().clearMessages(false);
+					notice("Chat cleared.");
+				}, "Remove every message from chat (your sent-message history stays)."),
+				new BasicItems.ButtonItem("Reset chat settings", false, () -> minecraft.setScreen(new ConfirmDialog(this,
+						"Reset chat settings?", "Every VANTA chat setting goes back to default.", "Reset", c::resetToDefaults)), null)), 120, 18);
 	}
 
 	// ---- Crosshair
@@ -495,8 +661,8 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 			}, "Load the " + p.label() + " crosshair. You can tweak it after."));
 		}
 		lb.row(presets, 80, 18);
-		lb.row(List.of(new BasicItems.ButtonItem("Draw your own", true, () -> minecraft.setScreen(new vanta.crosshair.CrosshairDrawScreen(this, c)),
-				"Paint your crosshair pixel by pixel with mirroring and a live preview.")), 140, 18);
+		lb.row(List.of(new BasicItems.ButtonItem("Open crosshair editor", true, () -> minecraft.setScreen(new vanta.crosshair.CrosshairDrawScreen(this, c)),
+				"Start from a template or three sliders, touch it up with easy tools, then save.")), 160, 18);
 		section(lb, "Shape and size", null);
 		settingRows(lb, List.of(c.shape, c.size, c.length, c.thickness, c.gap, c.dotSize, c.circleRadius));
 		section(lb, "Color", null);
@@ -626,6 +792,16 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		lb.row(List.of(new BasicItems.ButtonItem("Menu Style options", false, () -> openModule(ModuleRegistry.byId("menu_style")),
 				"Choose which menus get the VANTA look, the pause info panel, blur and dimming.")), 140, 18);
 
+		section(lb, "Interface extras", null);
+		List<Module> extras = new ArrayList<>();
+		for (String id : new String[] {"notifications", "loading_screen", "cursor", "update_checker"}) {
+			Module m = ModuleRegistry.byId(id);
+			if (m != null) extras.add(m);
+		}
+		moduleCards(lb, extras);
+		lb.row(List.of(new BasicItems.ButtonItem("Run first-time setup again", false,
+				() -> minecraft.setScreen(new vanta.menu.SetupWizardScreen(this)), "The quick setup: look, performance and what you play.")), 170, 18);
+
 		section(lb, "Compatibility", "How VANTA works next to your other Fabric mods");
 		settingRows(lb, List.of(vanta.compat.CompatDetector.AVOID_DUPLICATES, vanta.compat.CompatDetector.YIELD_TITLE));
 		if (!CompatDetector.adjusted().isEmpty()) {
@@ -675,6 +851,13 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	private void buildAbout(LayoutBuilder lb) {
 		section(lb, Theme.clientName() + " Client", "Version " + VantaInfo.vantaVersion() + " for Minecraft " + VantaInfo.minecraftVersion());
 		statusRows(lb);
+		vanta.update.UpdateChecker up = vanta.update.UpdateChecker.get();
+		if (up != null) {
+			lb.full(new BasicItems.KeyValueRow("Updates", up::status, 0), 13);
+			lb.row(List.of(
+					new BasicItems.ButtonItem("Check now", false, up::check, "Look for a newer VANTA on GitHub."),
+					new BasicItems.ButtonItem("Open download page", false, () -> Util.getPlatform().openUri(up.pageUrl()), "Opens the releases page in your browser.")), 120, 18);
+		}
 		section(lb, "Credits", null);
 		lb.full(new BasicItems.KeyValueRow("Created by", () -> VantaInfo.CREATOR, Theme.accent()), 13);
 		for (int i = 0; i < VantaInfo.HELPERS.length; i++) {
@@ -682,9 +865,10 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 			lb.full(new BasicItems.KeyValueRow(i == 0 ? "Helpers" : "", () -> h, 0), 13);
 		}
 		section(lb, "Privacy", null);
-		paragraph(lb, "VANTA needs no account, sends no telemetry, and stores settings only in your config folder. "
-				+ "The one network request is the optional server region lookup next to your ping: it sends only the server's IP to ipwho.is, "
-				+ "once per server. Turn it off in Settings > Network to stay fully offline.", 0);
+		paragraph(lb, "VANTA needs no account, sends no telemetry, and stores settings only in your config folder. Network requests, all optional: "
+				+ "the server region lookup next to your ping (sends the server's IP to a lookup service, once per server; Settings > Network), "
+				+ "the update check (asks GitHub for the latest release when the game starts; turn off Update Checker), Tier Tagger lookups "
+				+ "(only while it's on), and a presence server only if you set one. Your friends list stays on your computer.", 0);
 		section(lb, "Fair play", null);
 		paragraph(lb, "VANTA never clicks, aims or changes reach, and it sends the same packets as vanilla. Reach, combo, CPS and keystrokes "
 				+ "only display what already happened. The optional client-side crystals and anchors (Optimizations tab, off by default) only "
@@ -699,7 +883,9 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		paragraph(lb, ModuleRegistry.all().size() + " modules, including zoom, freelook, fullbright, custom crosshair, block outline, "
 				+ "hitboxes, nametags, damage indicators, hit color, item physics, time and sky, weather, minimap, waypoints, "
 				+ "scoreboard and tab list restyles, a clean F3 panel, totem pop counter, item cooldowns, keystrokes, CPS, reach, combo, "
-				+ "armor status, FPS, measured ping with region, auto reconnect, nick hider, client badge and the home screen with quick join.\n"
+				+ "armor status, FPS, measured ping with region, auto reconnect, nick hider, client badge, themed chat with tabs, search, heads and emoji, "
+				+ "totem customizer, held item view, capes and trails, friends, session stats, inventory viewer, durability warnings, "
+				+ "notifications, loading screens, custom cursor, menu FPS caps, dynamic render distance and the home screen with quick join.\n"
 				+ "Plus performance presets with undo, profiles, saved themes and a deeply customizable interface.", 0);
 	}
 
@@ -710,6 +896,18 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		lb.full(new SettingRow(m.enabledSetting(), this), SettingRow.height());
 		if (m == ModuleRegistry.CROSSHAIR) {
 			lb.row(List.of(new BasicItems.ButtonItem("Open crosshair editor", true, () -> openPage(MenuPage.CROSSHAIR), null)), 140, 18);
+			return;
+		}
+		if (m instanceof vanta.chat.ChatModule) {
+			lb.row(List.of(new BasicItems.ButtonItem("Open the Chat page", true, () -> openPage(MenuPage.CHAT), null)), 140, 18);
+			return;
+		}
+		if (m instanceof vanta.cosmetics.CosmeticsModule) {
+			lb.row(List.of(new BasicItems.ButtonItem("Open the Cosmetics page", true, () -> openPage(MenuPage.COSMETICS), null)), 140, 18);
+			return;
+		}
+		if (m instanceof vanta.friends.FriendsModule) {
+			lb.row(List.of(new BasicItems.ButtonItem("Open the Friends page", true, () -> openPage(MenuPage.FRIENDS), null)), 140, 18);
 			return;
 		}
 		if (m == ModuleRegistry.TITLE_SCREEN) backgroundExtras(lb);
@@ -811,6 +1009,9 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		Object owner = s.owner();
 		clearSearch();
 		if (owner == ModuleRegistry.CROSSHAIR) openPage(MenuPage.CROSSHAIR);
+		else if (owner instanceof vanta.chat.ChatModule) openPage(MenuPage.CHAT);
+		else if (owner instanceof vanta.cosmetics.CosmeticsModule) openPage(MenuPage.COSMETICS);
+		else if (owner instanceof vanta.friends.FriendsModule) openPage(MenuPage.FRIENDS);
 		else if (owner instanceof Module m) openModule(m);
 		else if (owner instanceof MenuPage p) openPage(p);
 		highlight(s.id());

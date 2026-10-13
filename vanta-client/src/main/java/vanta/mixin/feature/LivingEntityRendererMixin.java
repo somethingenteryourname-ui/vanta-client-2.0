@@ -30,7 +30,8 @@ abstract class LivingEntityRendererMixin {
 		boolean badge = ClientBadgeModule.active();
 		boolean tags = NametagsModule.active();
 		boolean tiers = vanta.tiers.TierTaggerModule.inNametags();
-		if (!badge && !tags && !tiers) return;
+		boolean friend = vanta.friends.FriendsModule.markNametag(player.getName().getString());
+		if (!badge && !tags && !tiers && !friend) return;
 		Minecraft mc = Minecraft.getInstance();
 		if (state.nameTag == null && entity == mc.player && (ClientBadgeModule.showOwnNametag() || NametagsModule.showOwn())
 				&& Minecraft.renderNames() && !entity.isInvisible() && !mc.options.hideGui) {
@@ -40,6 +41,7 @@ abstract class LivingEntityRendererMixin {
 		if (state.nameTag == null) return;
 		if (tags) state.nameTag = NametagsModule.decorate(player, state.nameTag);
 		if (tiers) state.nameTag = vanta.tiers.TierTaggerModule.decorate(player.getUUID(), player.getName().getString(), state.nameTag);
+		if (friend) state.nameTag = vanta.friends.FriendsModule.decorate(state.nameTag);
 		if (ClientBadgeModule.badgeFor(player.getUUID())) state.nameTag = VantaUsers.withBadge(state.nameTag);
 	}
 }

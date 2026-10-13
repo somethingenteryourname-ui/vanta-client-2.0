@@ -52,6 +52,9 @@ public final class OptimizationsModule extends Module {
 			"Stop the camera bobbing while you walk.", false));
 	public final BoolSetting noHurtTilt = setting(new BoolSetting(key("no_hurt_tilt"), "No hurt camera shake",
 			"Stop the screen tilting when you take damage.", false));
+	public final BoolSetting noIdleThrottle = setting(new BoolSetting(key("no_idle_throttle"), "Stop random 30 FPS drops",
+			"Minecraft drops to 30 FPS when it thinks you're AFK, and sometimes gets that wrong while you're playing. "
+			+ "This keeps full FPS whenever the game window is focused.", true));
 	public final BoolSetting freeMemory = setting(new BoolSetting(key("free_memory"), "Free memory when leaving a world",
 			"Clean up memory in the background after you leave a world or server, so the next join is smoother.", true));
 
@@ -68,6 +71,7 @@ public final class OptimizationsModule extends Module {
 	private static boolean on() { return instance != null && instance.isEnabled(); }
 	public static boolean staticCrystals() { return on() && instance.staticCrystals.on(); }
 	public static boolean hideDead() { return on() && instance.noDeathAnimation.on(); }
+	public static boolean noIdleThrottle() { return on() && instance.noIdleThrottle.on(); }
 	public static boolean instantSneak() { return on() && instance.instantSneak.on(); }
 
 	@Override

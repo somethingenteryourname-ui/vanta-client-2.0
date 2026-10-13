@@ -23,6 +23,8 @@ import vanta.modules.impl.HudTweaksModule;
 public final class HudManager {
 	public static final Identifier HUD_ID = Identifier.fromNamespaceAndPath("vanta", "hud");
 	public static final Identifier DAMAGE_ID = Identifier.fromNamespaceAndPath("vanta", "damage_indicators");
+	public static final Identifier DURABILITY_ID = Identifier.fromNamespaceAndPath("vanta", "durability_warning");
+	public static final Identifier TOTEM_ID = Identifier.fromNamespaceAndPath("vanta", "totem_flat");
 	public static final Identifier WAYPOINTS_ID = Identifier.fromNamespaceAndPath("vanta", "waypoints");
 
 	private HudManager() {
@@ -42,6 +44,20 @@ public final class HudManager {
 				vanta.modules.impl.DamageIndicatorsModule.render(g, t);
 			} catch (RuntimeException e) {
 				vanta.client.VantaClient.LOG.error("[VANTA] Damage indicators failed", e);
+			}
+		});
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, TOTEM_ID, (g, t) -> {
+			try {
+				vanta.modules.impl.TotemModule.renderFlat(g, t);
+			} catch (RuntimeException e) {
+				vanta.client.VantaClient.LOG.error("[VANTA] Flat totem animation failed", e);
+			}
+		});
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, DURABILITY_ID, (g, t) -> {
+			try {
+				vanta.hud.widgets.DurabilityWarningModule.render(g, t);
+			} catch (RuntimeException e) {
+				vanta.client.VantaClient.LOG.error("[VANTA] Durability warning failed", e);
 			}
 		});
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, HUD_ID, HudManager::render);

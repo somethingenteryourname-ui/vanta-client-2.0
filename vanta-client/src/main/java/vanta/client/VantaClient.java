@@ -50,6 +50,7 @@ public final class VantaClient implements ClientModInitializer {
 		ModuleRegistry.init();
 		vanta.net.RegionLookup.init();
 		CompatDetector.init();
+		vanta.menu.SetupState.init();
 		vanta.net.LivePing.init();
 		// 2. Load saved values (safe: a broken file falls back to defaults).
 		ConfigManager.get().load();
@@ -63,6 +64,7 @@ public final class VantaClient implements ClientModInitializer {
 		vanta.social.VantaUsers.init();
 		try {
 			vanta.combat.PopCommands.register();
+			vanta.friends.FriendCommands.register();
 		} catch (RuntimeException | LinkageError e) {
 			LOG.warn("[VANTA] Could not register /resetcounter", e);
 		}
@@ -102,6 +104,7 @@ public final class VantaClient implements ClientModInitializer {
 		}
 		CombatTracker.tick(client);
 		vanta.combat.TotemTracker.tick(client);
+		vanta.combat.SessionStats.tick(client, vanta.hud.widgets.SessionStatsWidget.resetOnJoin());
 		vanta.social.VantaUsers.tick(client);
 		vanta.menu.PauseMenuExtras.tick(client);
 		vanta.menu.QuickPlay.tick(client);

@@ -163,7 +163,7 @@ public final class PerformancePresets {
 	public static List<String> vantaChanges(Preset p) {
 		return switch (p) {
 			case MAX_FPS -> List.of("Particles module: 50% density, explosions hidden", "Entity Culling: items 32, orbs 24, frames 32, chests 48 blocks", "Background FPS: on (10 FPS)");
-			case COMPETITIVE -> List.of("Particles module: explosions hidden, 75% density", "Entity Culling: items 40, orbs 24 blocks", "Screen Effects: low fire, small totem pops");
+			case COMPETITIVE -> List.of("Particles module: explosions hidden, 75% density", "Entity Culling: items 40, orbs 24 blocks", "Screen Effects: low fire", "Totem Customizer: smaller totem pops");
 			case BALANCED -> List.of("Particles module: 100% density, explosions shown", "Entity Culling: defaults");
 			case RECORDING -> List.of("Particles module: 100% density");
 			case POTATO -> List.of("Particles module: 25% density, explosions hidden", "Entity Culling: items 24, orbs 16, frames 24, mobs 48, chests 32 blocks", "Background FPS: on (5 FPS)");
@@ -197,7 +197,8 @@ public final class PerformancePresets {
 				culling.orbs.set(24);
 				fx.setEnabled(true);
 				fx.fire.set(vanta.modules.impl.ScreenEffectsModule.Fire.LOW);
-				fx.totemScale.set(50);
+				vanta.modules.impl.TotemModule totem = (vanta.modules.impl.TotemModule) vanta.modules.ModuleRegistry.byId("totem");
+				if (totem != null) totem.size.set(50);
 			}
 			case BALANCED -> {
 				particles.density.set(100);

@@ -55,6 +55,7 @@ public final class CompatDetector {
 			{"betterf3", "BetterF3", "VANTA's Clean F3 is turned off so BetterF3 shows."},
 			{"perspectivemod", "Perspective Mod", "VANTA's Freelook is turned off (same key)."},
 			{"freelook", "Freelook", "VANTA's Freelook is turned off (same key)."},
+			{"chatpatches", "Chat Patches", "Also adds timestamps and stacking: turn those off on VANTA's Chat page if you see them twice."},
 			{"itemphysic", "ItemPhysic", "VANTA's Item Physics is turned off."},
 			{"itemphysiclite", "ItemPhysic Lite", "VANTA's Item Physics is turned off."},
 			{"autoreconnect", "AutoReconnect", "VANTA's Auto Reconnect is turned off."},

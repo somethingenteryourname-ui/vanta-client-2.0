@@ -7,7 +7,7 @@ import vanta.config.Labeled;
 import vanta.modules.Category;
 import vanta.modules.Module;
 
-/** Cleaner screen: low fire, smaller totem animation, no pumpkin/powder snow/portal overlays. */
+/** Cleaner screen: low fire, no pumpkin/powder snow/portal overlays. */
 public final class ScreenEffectsModule extends Module {
 	public enum Fire implements Labeled {
 		NORMAL("Normal"), LOW("Low"), HIDDEN("Hidden");
@@ -22,8 +22,6 @@ public final class ScreenEffectsModule extends Module {
 			"Lower or hide the flames covering your screen when you're burning.", Fire.LOW));
 	public final IntSetting fireHeight = setting(new IntSetting(key("fire_height"), "Low fire height",
 			"How far the flames are pushed down in Low mode.", 30, 5, 60, 5, "%"));
-	public final IntSetting totemScale = setting(new IntSetting(key("totem_scale"), "Totem animation size",
-			"Size of the totem pop animation. 0 hides it.", 60, 0, 100, 5, "%"));
 	public final BoolSetting hidePumpkin = setting(new BoolSetting(key("hide_pumpkin"), "Hide pumpkin blur",
 			"Remove the overlay when wearing a carved pumpkin.", true));
 	public final BoolSetting hidePowderSnow = setting(new BoolSetting(key("hide_powder_snow"), "Hide powder snow frost",
@@ -32,7 +30,7 @@ public final class ScreenEffectsModule extends Module {
 			"Remove the purple overlay while standing in a nether portal.", false));
 
 	public ScreenEffectsModule() {
-		super("screen_effects", "Screen Effects", "Low fire, smaller totem pops and no blocking overlays. Visual only.",
+		super("screen_effects", "Screen Effects", "Low fire and no blocking overlays (pumpkin, powder snow, portal). Totem pops have their own Totem Customizer. Visual only.",
 				Category.VISUALS, true);
 		instance = this;
 	}
@@ -45,8 +43,6 @@ public final class ScreenEffectsModule extends Module {
 	public static float fireOffset() {
 		return on() && instance.fire.get() == Fire.LOW ? instance.fireHeight.value() / 100f : 0f;
 	}
-
-	public static float totemScale() { return on() ? instance.totemScale.value() / 100f : 1f; }
 
 	/** Whether a full-screen texture overlay should be skipped. */
 	public static boolean hideOverlay(String texturePath) {

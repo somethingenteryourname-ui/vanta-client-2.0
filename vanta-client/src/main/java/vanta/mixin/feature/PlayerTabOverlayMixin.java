@@ -44,6 +44,9 @@ abstract class PlayerTabOverlayMixin {
 		if (vanta.tiers.TierTaggerModule.inTabList() && cir.getReturnValue() != null) {
 			cir.setReturnValue(vanta.tiers.TierTaggerModule.decorate(info.getProfile().id(), info.getProfile().name(), cir.getReturnValue()));
 		}
+		if (cir.getReturnValue() != null && vanta.friends.FriendsModule.markTab(info.getProfile().name())) {
+			cir.setReturnValue(vanta.friends.FriendsModule.decorate(cir.getReturnValue()));
+		}
 		if (ClientBadgeModule.inTabList() && cir.getReturnValue() != null && ClientBadgeModule.badgeFor(info.getProfile().id())) {
 			cir.setReturnValue(VantaUsers.withBadge(cir.getReturnValue()));
 		}

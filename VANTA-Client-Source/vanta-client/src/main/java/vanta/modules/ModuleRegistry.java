@@ -61,6 +61,8 @@ public final class ModuleRegistry {
 		add(new ParticlesModule());
 		add(new EntityCullingModule());
 		add(new BackgroundFpsModule());
+		add(new vanta.performance.ScreenFpsModule());
+		add(new vanta.performance.DynamicRenderDistanceModule());
 		add(new vanta.optimize.OptimizationsModule());
 		// Visuals
 		add(new ZoomModule());
@@ -74,6 +76,8 @@ public final class ModuleRegistry {
 		add(new vanta.modules.impl.DamageIndicatorsModule());
 		add(new vanta.modules.impl.HitColorModule());
 		add(new vanta.modules.impl.ItemPhysicsModule());
+		add(new vanta.modules.impl.ViewModelModule());
+		add(new vanta.cosmetics.CosmeticsModule());
 		add(new vanta.modules.impl.TimeSkyModule());
 		add(new vanta.modules.impl.WeatherModule());
 		// PvP
@@ -86,7 +90,10 @@ public final class ModuleRegistry {
 		add(new CombatCounterWidget());
 		add(new vanta.hud.widgets.ItemCooldownWidget());
 		add(new vanta.modules.impl.TotemPopsModule());
+		add(new vanta.modules.impl.TotemModule());
 		add(new vanta.tiers.TierTaggerModule());
+		add(new vanta.hud.widgets.SessionStatsWidget());
+		add(new vanta.hud.widgets.DurabilityWarningModule());
 		// HUD
 		add(new FpsWidget());
 		add(new FrameTimeWidget());
@@ -99,6 +106,7 @@ public final class ModuleRegistry {
 		add(new SpeedWidget());
 		add(new ServerWidget());
 		add(new vanta.hud.widgets.MinimapWidget());
+		add(new vanta.hud.widgets.InventoryWidget());
 		add(new vanta.waypoints.WaypointsModule());
 		// Interface / QoL
 		TITLE_SCREEN = add(new TitleScreenModule());
@@ -109,6 +117,12 @@ public final class ModuleRegistry {
 		add(new vanta.modules.impl.TabListModule());
 		add(new vanta.modules.impl.NickHiderModule());
 		add(new vanta.modules.impl.ClientBadgeModule());
+		add(new vanta.friends.FriendsModule());
+		add(new vanta.chat.ChatModule());
+		add(new vanta.notify.NotificationsModule());
+		add(new vanta.loading.LoadingScreenModule());
+		add(new vanta.cursor.CursorModule());
+		add(new vanta.update.UpdateChecker());
 		add(new ShulkerPreviewModule());
 		add(new DeathCoordsModule());
 		add(new AutoPerspectiveModule());

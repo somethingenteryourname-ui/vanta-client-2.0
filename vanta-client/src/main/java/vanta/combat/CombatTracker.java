@@ -25,6 +25,7 @@ public final class CombatTracker {
 		Minecraft mc = Minecraft.getInstance();
 		LocalPlayer p = mc.player;
 		if (p == null || !(target instanceof LivingEntity)) return;
+		SessionStats.onAttack(target);
 		Vec3 eye = p.getEyePosition();
 		AABB box = target.getBoundingBox();
 		double cx = Math.max(box.minX, Math.min(eye.x, box.maxX));

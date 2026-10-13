@@ -64,7 +64,14 @@ public final class PresenceClient {
 		lastPlayerCount = players;
 
 		JsonObject body = new JsonObject();
-		if (ClientBadgeModule.shares()) body.addProperty("self", mc.player.getUUID().toString());
+		if (ClientBadgeModule.shares()) {
+			body.addProperty("self", mc.player.getUUID().toString());
+			String[] look = vanta.cosmetics.CosmeticsModule.shared();
+			JsonObject cos = new JsonObject();
+			cos.addProperty("cape", look[0]);
+			cos.addProperty("trail", look[1]);
+			body.add("cosmetics", cos);
+		}
 		JsonArray check = new JsonArray();
 		int n = 0;
 		for (PlayerInfo info : conn.getOnlinePlayers()) {
@@ -94,6 +101,19 @@ public final class PresenceClient {
 					}
 				}
 				mc.execute(() -> VantaUsers.setPresence(users));
+				if (o.has("cosmetics") && o.get("cosmetics").isJsonObject()) {
+					for (var e : o.getAsJsonObject("cosmetics").entrySet()) {
+						try {
+							UUID id = UUID.fromString(e.getKey());
+							JsonObject c = e.getValue().getAsJsonObject();
+							String cape = c.has("cape") ? c.get("cape").getAsString() : "none";
+							String trail = c.has("trail") ? c.get("trail").getAsString() : "none";
+							mc.execute(() -> vanta.cosmetics.Cosmetics.setOther(id, cape, trail));
+						} catch (RuntimeException ignored) {
+							// bad entry
+						}
+					}
+				}
 				lastError = "";
 			} catch (Exception e) {
 				lastError = "Can't reach the presence server (" + e.getClass().getSimpleName() + ")";

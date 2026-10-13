@@ -81,6 +81,16 @@ public final class Logo {
 	 * @return the width drawn
 	 */
 	public static int draw(GuiGraphics g, int x, int y, int size, boolean withName, long introStart) {
+		return draw(g, x, y, size, withName, introStart, 1f);
+	}
+
+	/**
+	 * Same as {@link #draw(GuiGraphics, int, int, int, boolean, long)} with everything
+	 * faded to {@code opacity} (0..1). Used for watermarks such as the chat background.
+	 */
+	public static int draw(GuiGraphics g, int x, int y, int size, boolean withName, long introStart, float opacity) {
+		float op = clamp01(opacity);
+		if (op <= 0.003f) return width(size, withName);
 		long now = System.currentTimeMillis();
 		Art art = art(size);
 		int E = art.e();
@@ -97,7 +107,7 @@ public final class Logo {
 		float cx = x + size / 2f, cy = y + size / 2f;
 
 		float breathe = still ? 0.5f : 0.5f + 0.5f * (float) Math.sin(now / 900.0);
-		float glowAlpha = (0.16f + 0.12f * breathe) * emblemAlpha;
+		float glowAlpha = (0.16f + 0.12f * breathe) * emblemAlpha * op;
 		float glowSize = size * 1.75f;
 		g.pose().pushMatrix();
 		g.pose().translate(cx - glowSize / 2f, cy - glowSize / 2f);
@@ -110,14 +120,14 @@ public final class Logo {
 		if (turn != 0f) g.pose().rotate(turn);
 		g.pose().scale(size * scale / E);
 		g.pose().translate(-E / 2f, -E / 2f);
-		g.blit(RenderPipelines.GUI_TEXTURED, art.emblem(), 0, 0, 0f, 0f, E, E, E, E, Colors.withAlpha(accent, emblemAlpha));
+		g.blit(RenderPipelines.GUI_TEXTURED, art.emblem(), 0, 0, 0f, 0f, E, E, E, E, Colors.withAlpha(accent, emblemAlpha * op));
 		if (!still) {
 			long since = introStart > 0 ? now - introStart - 700 : now;
 			long phase = Math.floorMod(since, SHEEN_PERIOD);
 			if (since > 0 && phase < SHEEN_TIME) {
 				int frame = (int) (phase * 16 / SHEEN_TIME);
 				float u = (frame % 4) * E, v = (frame / 4) * E;
-				g.blit(RenderPipelines.GUI_TEXTURED, art.sheen(), 0, 0, u, v, E, E, E * 4, E * 4, Colors.withAlpha(0xFFFFFFFF, 0.8f * emblemAlpha));
+				g.blit(RenderPipelines.GUI_TEXTURED, art.sheen(), 0, 0, u, v, E, E, E * 4, E * 4, Colors.withAlpha(0xFFFFFFFF, 0.8f * emblemAlpha * op));
 			}
 		}
 		g.pose().popMatrix();
@@ -129,7 +139,7 @@ public final class Logo {
 		int nx = x + size + gap;
 		int textColor = Theme.text() | 0xFF000000;
 		if (!usesWordmark()) {
-			drawCustomName(g, Theme.clientName(), nx, y, size, t, now, still, accent, secondary);
+			drawCustomName(g, Theme.clientName(), nx, y, size, t, now, still, accent, secondary, op);
 			return width(size, true);
 		}
 		float h = size * WORDMARK_RATIO;
@@ -145,7 +155,7 @@ public final class Logo {
 			g.pose().translate(nx, ny + rise);
 			g.pose().scale(ts);
 			int u0 = (int) Math.floor(l), u1 = Math.min(art.wmW(), (int) Math.ceil(r) + 1);
-			g.blit(RenderPipelines.GUI_TEXTURED, art.wordmark(), u0, 0, u0, 0f, u1 - u0, art.wmH(), art.wmW(), art.wmH(), Colors.withAlpha(textColor, lt));
+			g.blit(RenderPipelines.GUI_TEXTURED, art.wordmark(), u0, 0, u0, 0f, u1 - u0, art.wmH(), art.wmW(), art.wmH(), Colors.withAlpha(textColor, lt * op));
 			g.pose().popMatrix();
 		}
 		// accent line that draws in under the wordmark
@@ -153,7 +163,8 @@ public final class Logo {
 		if (line > 0f) {
 			int lw = Math.max(1, Math.round(WM_W * s * 0.22f * line));
 			int ly = Math.round(ny + h + Math.max(2f, size * 0.07f));
-			Ui.hGradient(g, nx + Math.round(LETTERS[0][0] * s), ly, lw, Math.max(1, Math.round(size / 24f)), accent, secondary);
+			Ui.hGradient(g, nx + Math.round(LETTERS[0][0] * s), ly, lw, Math.max(1, Math.round(size / 24f)), Colors.withAlpha(accent, op),
+					Colors.withAlpha(secondary, op));
 		}
 		return width(size, true);
 	}
@@ -169,7 +180,7 @@ public final class Logo {
 	 * an accent line draws in underneath, and a shine runs across the letters now and then.
 	 */
 	private static void drawCustomName(GuiGraphics g, String name, int nx, int y, int size, float t, long now, boolean still,
-			int accent, int secondary) {
+			int accent, int secondary, float op) {
 		float ts = nameScale(size);
 		float textH = 8 * ts;
 		float baseY = y + (size - textH) / 2f - size * 0.04f;
@@ -199,7 +210,7 @@ public final class Logo {
 				g.pose().pushMatrix();
 				g.pose().translate(nx + cx, baseY + rise);
 				g.pose().scale(ts);
-				g.drawString(Ui.font(), ch, 0, 0, Colors.withAlpha(color, lt), false);
+				g.drawString(Ui.font(), ch, 0, 0, Colors.withAlpha(color, lt * op), false);
 				g.pose().popMatrix();
 			}
 			cx += cw;
@@ -208,7 +219,7 @@ public final class Logo {
 		if (line > 0f) {
 			int lw = Math.max(1, Math.round(totalW * 0.3f * line));
 			int ly = Math.round(baseY + textH + Math.max(2f, size * 0.08f));
-			Ui.hGradient(g, nx, ly, lw, Math.max(1, Math.round(size / 18f)), accent, secondary);
+			Ui.hGradient(g, nx, ly, lw, Math.max(1, Math.round(size / 18f)), Colors.withAlpha(accent, op), Colors.withAlpha(secondary, op));
 		}
 	}
 

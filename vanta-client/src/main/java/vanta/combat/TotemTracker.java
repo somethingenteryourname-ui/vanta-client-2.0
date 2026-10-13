@@ -28,6 +28,7 @@ public final class TotemTracker {
 	/** Entity event 35 = totem used; 3 = death. */
 	public static void onEntityEvent(Entity entity, byte event) {
 		if (!(entity instanceof Player p)) return;
+		SessionStats.onEntityEvent(entity, event, System.currentTimeMillis());
 		if (event == 35) {
 			int n = POPS.merge(p.getUUID(), 1, Integer::sum);
 			TotemPopsModule.onPop(p, n);

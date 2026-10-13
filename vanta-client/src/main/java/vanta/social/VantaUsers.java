@@ -50,6 +50,11 @@ public final class VantaUsers {
 				FROM_SERVER.clear();
 				FROM_SERVER.addAll(payload.users());
 			});
+			PayloadTypeRegistry.playC2S().register(BridgePayloads.Cosmetic.TYPE, BridgePayloads.Cosmetic.CODEC);
+			PayloadTypeRegistry.playS2C().register(BridgePayloads.Cosmetics.TYPE, BridgePayloads.Cosmetics.CODEC);
+			ClientPlayNetworking.registerGlobalReceiver(BridgePayloads.Cosmetics.TYPE, (payload, context) -> {
+				for (BridgePayloads.Cosmetics.Entry e : payload.entries()) vanta.cosmetics.Cosmetics.setOther(e.id(), e.cape(), e.trail());
+			});
 		} catch (RuntimeException | LinkageError e) {
 			VantaClient.LOG.warn("[VANTA] Could not set up the VANTA Bridge channel; badges will only use the presence server", e);
 		}
@@ -63,7 +68,10 @@ public final class VantaUsers {
 			helloSent = false;
 			FROM_SERVER.clear();
 			FROM_PRESENCE.clear();
+			vanta.cosmetics.Cosmetics.clearOthers();
+			vanta.cosmetics.CosmeticsModule.resetSent();
 		}
+		if (conn != null) sendCosmetics();
 		if (conn == null || !ClientBadgeModule.active()) return;
 		if (!helloSent && ClientBadgeModule.shares()) {
 			try {
@@ -76,6 +84,18 @@ public final class VantaUsers {
 			}
 		}
 		PresenceClient.tick(mc);
+	}
+
+	/** Tells a VANTA Bridge server about your cape and trail (when they change). */
+	private static void sendCosmetics() {
+		try {
+			if (!ClientPlayNetworking.canSend(BridgePayloads.Cosmetic.TYPE)) return;
+			if (!vanta.cosmetics.CosmeticsModule.sharedChanged()) return;
+			String[] s = vanta.cosmetics.CosmeticsModule.shared();
+			ClientPlayNetworking.send(new BridgePayloads.Cosmetic(s[0], s[1]));
+		} catch (RuntimeException | LinkageError ignored) {
+			// server without the channel
+		}
 	}
 
 	static void setPresence(Collection<UUID> users) {

@@ -11,16 +11,22 @@ import net.minecraft.world.attribute.EnvironmentAttributes;
 
 import vanta.modules.impl.TimeSkyModule;
 
-/** Time & Sky: custom sky (and matching fog) color for the camera. Keeps the original alpha. */
+/** Time & Sky: custom sky, horizon (fog) and cloud colors for the camera. Keeps the original alpha. */
 @Mixin(EnvironmentAttributeProbe.class)
 abstract class EnvironmentAttributeProbeMixin {
 	@Inject(method = "getValue", at = @At("RETURN"), cancellable = true)
 	private void vanta$sky(EnvironmentAttribute<?> attribute, float partialTicks, CallbackInfoReturnable<Object> cir) {
+		if (!(cir.getReturnValue() instanceof Integer original)) return;
+		if (attribute == EnvironmentAttributes.CLOUD_COLOR) {
+			int c = TimeSkyModule.cloudColor(original);
+			if (c != 0) cir.setReturnValue(c);
+			return;
+		}
 		int rgb;
-		if (attribute == EnvironmentAttributes.SKY_COLOR) rgb = TimeSkyModule.skyColor();
-		else if (attribute == EnvironmentAttributes.FOG_COLOR) rgb = TimeSkyModule.fogColor();
+		if (attribute == EnvironmentAttributes.SKY_COLOR) rgb = TimeSkyModule.skyColor(original);
+		else if (attribute == EnvironmentAttributes.FOG_COLOR) rgb = TimeSkyModule.fogColor(original);
 		else return;
-		if (rgb < 0 || !(cir.getReturnValue() instanceof Integer original)) return;
+		if (rgb < 0) return;
 		cir.setReturnValue((original & 0xFF000000) | rgb);
 	}
 }

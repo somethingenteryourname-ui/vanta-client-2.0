@@ -1,8 +1,8 @@
 name: VantaBridge
-version: '1.0.0'
+version: '1.1.0'
 main: vanta.bridge.VantaBridge
 api-version: '1.21'
-description: Lets players using VANTA Client see each other's VANTA badge.
+description: Lets players using VANTA Client see each other's VANTA badge, capes and trails.
 commands:
   vanta:
     description: Lists online players using VANTA Client.

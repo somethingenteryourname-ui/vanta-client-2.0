@@ -8,7 +8,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import net.minecraft.client.PrioritizeChunkUpdates;
+import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.server.level.ParticleStatus;
+import net.minecraft.world.entity.player.ChatVisiblity;
 
 import vanta.gui.items.MenuHost;
 import vanta.gui.items.OptionRow;
@@ -100,6 +102,37 @@ public final class VanillaOptions {
 				ints(h, "Field of view", "Normal FOV.", o.fov(), 30, 110, 1, v -> String.valueOf(v)),
 				bool(h, "Vignette", "Dark screen edges.", o.vignette()),
 				bool(h, "Hide lightning flashes", "No sky flash from lightning.", o.hideLightningFlash())
+		);
+	}
+
+	/** Minecraft's own chat options, shown on the Chat page. */
+	public static List<OptionRow> chat(MenuHost h) {
+		Options o = o();
+		return List.of(
+				choice(h, "Chat shown", "Show all chat, only command feedback, or nothing.", o.chatVisibility(), ChatVisiblity.values(),
+						new String[]{"Shown", "Commands only", "Hidden"}),
+				OptionRow.slider(h, "Text opacity", "How solid chat text is.", 10, 100, 5,
+						() -> (int) Math.round(o.chatOpacity().get() * 90 + 10), v -> set(o.chatOpacity(), (v - 10) / 90.0), v -> v + "%"),
+				percent(h, "Vanilla background opacity", "Minecraft's black bars behind each line (used when VANTA chat style is off).",
+						o.textBackgroundOpacity(), 0, 100),
+				percent(h, "Chat scale", "Size of chat text.", o.chatScale(), 0, 100),
+				OptionRow.slider(h, "Chat width", "How wide chat is.", 0, 100, 5, () -> (int) Math.round(o.chatWidth().get() * 100),
+						v -> set(o.chatWidth(), v / 100.0), v -> ChatComponent.getWidth(v / 100.0) + "px"),
+				OptionRow.slider(h, "Height while typing", "How tall chat is when open.", 0, 100, 5,
+						() -> (int) Math.round(o.chatHeightFocused().get() * 100), v -> set(o.chatHeightFocused(), v / 100.0),
+						v -> ChatComponent.getHeight(v / 100.0) + "px"),
+				OptionRow.slider(h, "Height when closed", "How tall chat is during play.", 0, 100, 5,
+						() -> (int) Math.round(o.chatHeightUnfocused().get() * 100), v -> set(o.chatHeightUnfocused(), v / 100.0),
+						v -> ChatComponent.getHeight(v / 100.0) + "px"),
+				percent(h, "Line spacing", "Extra space between chat lines.", o.chatLineSpacing(), 0, 100),
+				OptionRow.slider(h, "Message delay", "Wait between incoming messages (helps read fast chat).", 0, 60, 1,
+						() -> (int) Math.round(o.chatDelay().get() * 10), v -> set(o.chatDelay(), v / 10.0),
+						v -> v == 0 ? "None" : String.format(java.util.Locale.ROOT, "%.1fs", v / 10.0)),
+				bool(h, "Colors", "Show colors in chat.", o.chatColors()),
+				bool(h, "Web links", "Make links in chat clickable.", o.chatLinks()),
+				bool(h, "Ask before opening links", "Confirm before a link opens in your browser.", o.chatLinksPrompt()),
+				bool(h, "Only show secure chat", "Hide messages that aren't signed by the sender.", o.onlyShowSecureChat()),
+				bool(h, "Hide matched names", "Let servers hide sender names they format themselves.", o.hideMatchedNames())
 		);
 	}
 }

@@ -37,7 +37,7 @@ final class BuiltInProfiles {
 				put(s, "module.particles.hide_explosions", true);
 				put(s, "module.particles.density", 75);
 				put(s, "module.screen_effects.enabled", true);
-				put(s, "module.screen_effects.totem_scale", 40);
+				put(s, "module.totem.size", 40);
 				put(s, "module.screen_effects.fire", "LOW");
 				put(s, "module.crosshair.enabled", true);
 				crosshair(s, vanta.crosshair.CrosshairModule.Preset.CRYSTAL);
