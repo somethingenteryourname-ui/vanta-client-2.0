@@ -15,7 +15,7 @@ public final class RecommendedMods {
 	}
 
 	public static final List<Rec> MODS = List.of(
-			new Rec("sodium", "Sodium", "Rewrites chunk rendering. Usually the single biggest FPS boost (often 2-3x)."),
+			new Rec("sodium", "Sodium", "Rewrites chunk rendering. Usually the biggest single FPS improvement; how much depends on your PC."),
 			new Rec("lithium", "Lithium", "Faster game logic: smoother singleplayer and less lag spikes."),
 			new Rec("ferritecore", "FerriteCore", "Cuts memory use, which reduces stutter from garbage collection."),
 			new Rec("entityculling", "EntityCulling", "Skips entities and chests hidden behind walls."),

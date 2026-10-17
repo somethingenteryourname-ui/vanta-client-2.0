@@ -18,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import vanta.client.VantaClient;
 import vanta.config.BoolSetting;
+import vanta.config.IntSetting;
 import vanta.modules.Category;
 import vanta.modules.Module;
 
@@ -56,11 +57,25 @@ public final class OptimizationsModule extends Module {
 			"Minecraft drops to 30 FPS when it thinks you're AFK, and sometimes gets that wrong while you're playing. "
 			+ "This keeps full FPS whenever the game window is focused.", true));
 	public final BoolSetting freeMemory = setting(new BoolSetting(key("free_memory"), "Free memory when leaving a world",
-			"Clean up memory in the background after you leave a world or server, so the next join is smoother.", true));
+			"Asks Java for a full memory cleanup after you leave a world. This freezes the game for a moment while it runs, "
+			+ "and Java normally cleans up well on its own, so leave it off unless the next join is noticeably smoother with it.", false));
 
-	private Boolean appliedBlur, appliedBob, appliedTilt;
-	private int savedBlur = 5;
+	// What the vanilla options were before VANTA changed them, saved so turning a tweak off (even
+	// after a restart) puts back your own value instead of a guess. Kept out of profiles.
+	private final BoolSetting ownsBlur = hiddenFlag("owns_blur");
+	private final IntSetting savedBlur = (IntSetting) setting(new IntSetting(key("saved_blur"), "Saved menu blur", "", 5, 0, 10, 1, ""))
+			.hidden().excludeFromSnapshots();
+	private final BoolSetting ownsBob = hiddenFlag("owns_bob");
+	private final BoolSetting savedBob = (BoolSetting) setting(new BoolSetting(key("saved_bob"), "Saved view bobbing", "", true))
+			.hidden().excludeFromSnapshots();
+	private final BoolSetting ownsTilt = hiddenFlag("owns_tilt");
+	private final IntSetting savedTilt = (IntSetting) setting(new IntSetting(key("saved_tilt"), "Saved hurt tilt", "", 100, 0, 100, 1, "%"))
+			.hidden().excludeFromSnapshots();
 	private boolean wasInWorld;
+
+	private BoolSetting hiddenFlag(String name) {
+		return (BoolSetting) setting(new BoolSetting(key(name), name, "", false)).hidden().excludeFromSnapshots();
+	}
 
 	public OptimizationsModule() {
 		super("optimizations", "Optimizations", "PvP and smoothness tweaks: client-side crystals and anchors, still crystals, "
@@ -91,42 +106,56 @@ public final class OptimizationsModule extends Module {
 		applyOptions(Minecraft.getInstance(), false);
 	}
 
-	/** Applies the vanilla-option toggles once per change, and puts them back when turned off. */
-	@SuppressWarnings("unchecked")
+	/**
+	 * Applies the vanilla-option tweaks and puts your own values back when a tweak (or the
+	 * module) is turned off. The value before VANTA's change is remembered across restarts.
+	 */
 	private void applyOptions(Minecraft mc, boolean enabled) {
 		if (mc == null || mc.options == null) return;
 		boolean changed = false;
 		try {
+			var blurOpt = mc.options.menuBackgroundBlurriness();
 			boolean blur = enabled && noMenuBlur.on();
-			if (appliedBlur == null || appliedBlur != blur) {
-				if (blur) {
-					int current = (Integer) mc.options.menuBackgroundBlurriness().get();
-					if (current > 0) savedBlur = current;
-					mc.options.menuBackgroundBlurriness().set(0);
-				} else if (appliedBlur != null) {
-					mc.options.menuBackgroundBlurriness().set(savedBlur);
-				}
-				appliedBlur = blur;
+			if (blur && !ownsBlur.on()) {
+				savedBlur.set(blurOpt.get());
+				blurOpt.set(0);
+				ownsBlur.set(true);
+				changed = true;
+			} else if (!blur && ownsBlur.on()) {
+				blurOpt.set(savedBlur.value());
+				ownsBlur.set(false);
 				changed = true;
 			}
+
+			var bobOpt = mc.options.bobView();
 			boolean bob = enabled && noViewBobbing.on();
-			if (appliedBob == null || appliedBob != bob) {
-				if (bob) mc.options.bobView().set(false);
-				else if (appliedBob != null) mc.options.bobView().set(true);
-				appliedBob = bob;
+			if (bob && !ownsBob.on()) {
+				savedBob.set(bobOpt.get());
+				bobOpt.set(false);
+				ownsBob.set(true);
+				changed = true;
+			} else if (!bob && ownsBob.on()) {
+				bobOpt.set(savedBob.on());
+				ownsBob.set(false);
 				changed = true;
 			}
+
+			var tiltOpt = mc.options.damageTiltStrength();
 			boolean tilt = enabled && noHurtTilt.on();
-			if (appliedTilt == null || appliedTilt != tilt) {
-				if (tilt) mc.options.damageTiltStrength().set(0.0);
-				else if (appliedTilt != null) mc.options.damageTiltStrength().set(1.0);
-				appliedTilt = tilt;
+			if (tilt && !ownsTilt.on()) {
+				savedTilt.set((int) Math.round(tiltOpt.get() * 100));
+				tiltOpt.set(0.0);
+				ownsTilt.set(true);
+				changed = true;
+			} else if (!tilt && ownsTilt.on()) {
+				tiltOpt.set(savedTilt.value() / 100.0);
+				ownsTilt.set(false);
 				changed = true;
 			}
 		} catch (RuntimeException e) {
 			VantaClient.LOG.debug("[VANTA] Could not apply an optimization option", e);
 		}
-		if (changed && (appliedBlur != null)) mc.options.save();
+		if (changed) mc.options.save();
 	}
 
 	// ------------------------------------------------------------------ client-side crystals

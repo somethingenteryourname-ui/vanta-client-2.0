@@ -95,6 +95,23 @@ public abstract class Setting<T> {
 	public final Setting<T> excludeFromSnapshots() { excludeFromSnapshots = true; return this; }
 	public final boolean isExcludedFromSnapshots() { return excludeFromSnapshots; }
 
+	/** Personal or network data: URLs VANTA connects to, chat macros, friends, local file paths. */
+	private boolean sensitive;
+
+	/**
+	 * Marks a setting as personal or network data. Sensitive settings are never written into
+	 * profiles, themes or shared files, and a profile file can never change them, so loading
+	 * someone else's profile can't redirect your traffic or put a command on your keys.
+	 * They still save normally in vanta.json and stay the same across profile switches.
+	 */
+	public final Setting<T> sensitive() {
+		sensitive = true;
+		excludeFromSnapshots = true;
+		return this;
+	}
+
+	public final boolean isSensitive() { return sensitive; }
+
 	final boolean load(JsonElement element) {
 		try {
 			T parsed = parse(element);

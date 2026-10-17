@@ -44,8 +44,9 @@ import vanta.gui.MenuPage;
  */
 public final class RegionLookup {
 	public static final BoolSetting ONLINE = SettingRegistry.register(new BoolSetting("region.online_lookup", "Online region lookup",
-			"Look up the server's region from its IP (only the server IP is sent; answers are saved so each server is looked up "
-			+ "about once a month). Off = use the server address only.", true), MenuPage.SETTINGS);
+			"Look up the server's region from its IP. Only the server's IP is sent, over HTTPS, to a free geo-IP service "
+			+ "(ipwho.is, geojs.io or ipapi.co); answers are saved so each server is looked up about once a month. "
+			+ "Off = guess from the server address only.", false), MenuPage.SETTINGS);
 
 	private static final long CACHE_DAYS = 30;
 	private static final long[] RETRY_MS = {5_000, 20_000, 60_000, 300_000};
@@ -236,15 +237,6 @@ public final class RegionLookup {
 				JsonObject o = getJson(http, "https://ipapi.co/" + ip + "/json/");
 				if (o.has("error") && o.get("error").getAsBoolean()) return null;
 				return result(str(o, "timezone"), str(o, "country_code"), str(o, "continent_code"), num(o, "longitude"), str(o, "org"));
-			}
-		},
-		IP_API {
-			@Override Result query(HttpClient http, String ip) throws Exception {
-				// Plain HTTP on the free tier; only the server's IP is sent.
-				JsonObject o = getJson(http, "http://ip-api.com/json/" + ip + "?fields=status,countryCode,continentCode,lon,timezone,org,isp");
-				if (!"success".equals(str(o, "status"))) return null;
-				return result(str(o, "timezone"), str(o, "countryCode"), str(o, "continentCode"), num(o, "lon"),
-						str(o, "org") + " " + str(o, "isp"));
 			}
 		};
 
