@@ -108,8 +108,8 @@ public final class ChatModule extends Module {
 			"Messages with your name (or your words below) get an accent background and marker.", true));
 	public final ChoiceSetting<MentionSound> mentionSound = setting(new ChoiceSetting<>(key("mention_sound"), "Mention sound",
 			"Play a sound when someone mentions you.", MentionSound.DING));
-	public final TextSetting mentionWords = setting(new TextSetting(key("mention_words"), "Extra highlight words",
-			"More words that count as a mention, separated by commas (for example a nickname or your clan tag).", "", 200));
+	public final TextSetting mentionWords = (TextSetting) setting(new TextSetting(key("mention_words"), "Extra highlight words",
+			"More words that count as a mention, separated by commas (for example a nickname or your clan tag).", "", 200)).sensitive();
 
 	// ---- filters
 	public final TextSetting mutedWords = setting(new TextSetting(key("muted_words"), "Muted words",

@@ -17,15 +17,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # The upload put the project in two folders (vanta-client and
-      # VANTA-Client-Source/vanta-client). Merge them into one before building.
-      - name: Merge project folders
+      # All source lives in vanta-client/. Fail early if an upload lands in an old folder.
+      - name: Check project layout
         run: |
-          mkdir -p vanta-client
-          if [ -d VANTA-Client-Source/vanta-client ]; then
-            cp -r VANTA-Client-Source/vanta-client/. vanta-client/
-          fi
-          ls vanta-client
+          for d in VANTA-Client-Source upload-these; do
+            if [ -d "$d" ]; then
+              echo "::error::Found '$d/'. Put files in vanta-client/src instead (see vanta-client/README.md)."
+              exit 1
+            fi
+          done
           echo "Java files: $(find vanta-client -name '*.java' | wc -l)"
 
       - name: Validate Gradle wrapper

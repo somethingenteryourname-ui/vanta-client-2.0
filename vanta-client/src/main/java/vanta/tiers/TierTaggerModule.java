@@ -45,14 +45,14 @@ public final class TierTaggerModule extends Module {
 	public final BoolSetting retired = setting(new BoolSetting(key("retired"), "Count retired tiers", "Show retired rankings (marked R).", false));
 	public final BoolSetting nametags = setting(new BoolSetting(key("nametags"), "In nametags", "Tier before names above heads.", true));
 	public final BoolSetting tabList = setting(new BoolSetting(key("tab_list"), "In tab list", "Tier before names in the player list.", true));
-	public final TextSetting pvptiersApi = setting(new TextSetting(key("pvptiers_api"), "PvPTiers API address",
+	public final TextSetting pvptiersApi = (TextSetting) setting(new TextSetting(key("pvptiers_api"), "PvPTiers API address",
 			"Where PvPTiers answers lookups. Use {uuid}, {uuid_nodash} or {name}; without them /v2/profile/{uuid} is added.",
-			"https://pvptiers.com/api", 200));
-	public final TextSetting solaceApi = setting(new TextSetting(key("solace_api"), "SolaceTiers API address",
+			"https://pvptiers.com/api", 200)).sensitive();
+	public final TextSetting solaceApi = (TextSetting) setting(new TextSetting(key("solace_api"), "SolaceTiers API address",
 			"Where SolaceTiers answers lookups. Use {uuid}, {uuid_nodash} or {name}; without them /v2/profile/{uuid} is added.",
-			"https://solacetiers.com/api", 200));
-	public final TextSetting mctiersApi = setting(new TextSetting(key("mctiers_api"), "MCTiers API address",
-			"MCTiers' public API.", "https://mctiers.com/api", 200));
+			"https://solacetiers.com/api", 200)).sensitive();
+	public final TextSetting mctiersApi = (TextSetting) setting(new TextSetting(key("mctiers_api"), "MCTiers API address",
+			"MCTiers' public API.", "https://mctiers.com/api", 200)).sensitive();
 
 	public TierTaggerModule() {
 		super("tier_tagger", "Tier Tagger", "Shows players' PvPTiers / SolaceTiers tier (HT1-LT5) by their name in nametags and the tab list. "

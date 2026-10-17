@@ -24,8 +24,8 @@ import vanta.notify.NotificationsModule;
 public final class UpdateChecker extends Module {
 	private static UpdateChecker instance;
 
-	public final TextSetting repo = setting(new TextSetting(key("repo"), "GitHub repository",
-			"Where VANTA releases are published, as owner/name.", "somethingenteryourname-ui/vanta-client-2.0", 120));
+	public final TextSetting repo = (TextSetting) setting(new TextSetting(key("repo"), "GitHub repository",
+			"Where VANTA releases are published, as owner/name.", "somethingenteryourname-ui/vanta-client-2.0", 120)).sensitive();
 	public final BoolSetting notifyOnStart = setting(new BoolSetting(key("notify"), "Tell me about updates",
 			"Show a notification when a newer version is out.", true));
 

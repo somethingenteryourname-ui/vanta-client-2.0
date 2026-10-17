@@ -29,7 +29,7 @@ public final class FriendsModule extends Module {
 	private static FriendsModule instance;
 
 	/** Friend names, comma separated (kept in your settings file). */
-	public final TextSetting list = (TextSetting) setting(new TextSetting(key("list"), "Friends", "Your friends' names.", "", 4000)).hidden();
+	public final TextSetting list = (TextSetting) setting(new TextSetting(key("list"), "Friends", "Your friends' names.", "", 4000)).hidden().sensitive();
 	public final ColorSetting color = setting(new ColorSetting(key("color"), "Friend color", "Color of the star next to friends.", 0xFF55FF7F, false));
 	public final BoolSetting nametags = setting(new BoolSetting(key("nametags"), "Mark nametags", "Show a star in front of friends' nametags.", true));
 	public final BoolSetting tabList = setting(new BoolSetting(key("tab_list"), "Mark tab list", "Show a star next to friends in the tab list.", true));

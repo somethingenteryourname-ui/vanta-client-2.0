@@ -747,6 +747,8 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	private void buildProfiles(LayoutBuilder lb) {
 		paragraph(lb, "A profile is your whole VANTA setup: modules, HUD layout, crosshair, theme and menu settings. "
 				+ "Switching saves your current profile first. Profiles don't change Minecraft's video settings - use Performance presets for that.", 0);
+		paragraph(lb, "For safety, profiles never include server addresses (presence, tier lists, updates), Auto Text messages, "
+				+ "highlight words or your friends list. Those stay the same in every profile, and a shared profile can't change them.", Theme.textFaint());
 		List<Item> top = new ArrayList<>();
 		top.add(new BasicItems.ButtonItem("New from current", true, () -> minecraft.setScreen(new TextInputScreen(this,
 				"New profile", "Name for the new profile.", "", 32, ProfileManager::create)), "Save your current setup as a new profile."));

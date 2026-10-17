@@ -9,6 +9,10 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -27,20 +31,29 @@ import vanta.client.VantaClient;
  * <li>Malformed file: it is copied to vanta.json.broken-&lt;time&gt; and defaults are used. Nothing crashes.</li>
  * <li>Unknown or invalid individual values are ignored and keep their defaults.</li>
  * <li>Saves are atomic (write temp file, then move) and debounced; the file is never read per frame.</li>
+ * <li>Values are turned into text on the client thread; the disk write happens on one background
+ * thread, in order, so a slow drive never stalls a frame. Shutdown waits for pending writes.</li>
  * </ul>
  */
 public final class ConfigManager {
-	public static final int CONFIG_VERSION = 1;
+	public static final int CONFIG_VERSION = 2;
 	private static final ConfigManager INSTANCE = new ConfigManager();
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	private static final long SAVE_DELAY_MS = 1500;
+
+	/** One thread, so writes always land in the order they were made. */
+	private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(r -> {
+		Thread t = new Thread(r, "VANTA config writer");
+		t.setDaemon(true);
+		return t;
+	});
 
 	private final Path dir = FabricLoader.getInstance().getConfigDir().resolve("vanta");
 	private final Path file = dir.resolve("vanta.json");
 	private boolean dirty;
 	private long dirtySince;
 	private boolean loading;
-	private String lastProblem;
+	private volatile String lastProblem;
 
 	private ConfigManager() {
 	}
@@ -93,6 +106,7 @@ public final class ConfigManager {
 				lastProblem = "Config was made by a newer VANTA version; loaded what this version understands.";
 			}
 			JsonObject settings = migrate(root, version);
+			boolean migrated = version < CONFIG_VERSION;
 
 			int ignored = 0;
 			for (Map.Entry<String, JsonElement> entry : settings.entrySet()) {
@@ -110,6 +124,10 @@ public final class ConfigManager {
 
 			// Keep a copy of the last config that loaded successfully.
 			Files.copy(file, dir.resolve("vanta.json.bak"), StandardCopyOption.REPLACE_EXISTING);
+			if (migrated) {
+				loading = false;
+				saveNow(); // store the upgraded layout right away
+			}
 		} catch (IOException e) {
 			lastProblem = "Could not read config: " + e.getMessage();
 			VantaClient.LOG.error("[VANTA] Config load failed", e);
@@ -121,40 +139,105 @@ public final class ConfigManager {
 
 	/** Upgrades older config layouts to the current one. */
 	private static JsonObject migrate(JsonObject root, int fromVersion) {
-		if (root.has("settings") && root.get("settings").isJsonObject()) {
-			return root.getAsJsonObject("settings");
+		JsonObject settings = root.has("settings") && root.get("settings").isJsonObject()
+				? root.getAsJsonObject("settings")
+				: root; // Version 0 / hand-written files: settings at the top level.
+		if (fromVersion < 2) migrateTo2(settings);
+		return settings;
+	}
+
+	/**
+	 * Version 2 (0.4.1): online region lookup and "Free memory when leaving a world" became
+	 * opt-in, so they go back to their new default (off) once. Optimizations now remembers
+	 * the vanilla options it changed; older versions always restored bobbing on, hurt tilt
+	 * 100% and menu blur 5, so those are recorded as the values to restore.
+	 */
+	private static void migrateTo2(JsonObject s) {
+		s.remove("region.online_lookup");
+		s.remove("module.optimizations.free_memory");
+		boolean module = !s.has("module.optimizations.enabled") || isTrue(s, "module.optimizations.enabled");
+		if (module && isTrue(s, "module.optimizations.no_view_bobbing")) {
+			s.addProperty("module.optimizations.owns_bob", true);
+			s.addProperty("module.optimizations.saved_bob", true);
 		}
-		// Version 0 / hand-written files: settings at the top level.
-		return root;
+		if (module && isTrue(s, "module.optimizations.no_hurt_tilt")) {
+			s.addProperty("module.optimizations.owns_tilt", true);
+			s.addProperty("module.optimizations.saved_tilt", 100);
+		}
+		if (module && isTrue(s, "module.optimizations.no_menu_blur")) {
+			s.addProperty("module.optimizations.owns_blur", true);
+			s.addProperty("module.optimizations.saved_blur", 5);
+		}
 	}
 
-	/** Called every client tick; writes the file once changes have settled. */
+	private static boolean isTrue(JsonObject o, String key) {
+		JsonElement e = o.get(key);
+		try {
+			return e != null && e.isJsonPrimitive() && e.getAsBoolean();
+		} catch (RuntimeException ex) {
+			return false;
+		}
+	}
+
+	/** Called every client tick; queues a write once changes have settled. */
 	public void tick() {
-		if (dirty && System.currentTimeMillis() - dirtySince >= SAVE_DELAY_MS) saveNow();
+		if (dirty && System.currentTimeMillis() - dirtySince >= SAVE_DELAY_MS) submitSave();
 	}
 
+	/** Saves pending changes and waits until everything queued is on disk (used at shutdown). */
 	public void saveIfDirty() {
 		if (dirty) saveNow();
+		else flush();
 	}
 
+	/** Saves now and waits for the write to finish. */
 	public void saveNow() {
+		await(submitSave());
+	}
+
+	/** Waits for every queued write to finish. */
+	public void flush() {
+		await(WRITER.submit(() -> { }));
+	}
+
+	private static void await(Future<?> f) {
+		try {
+			f.get(10, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		} catch (Exception e) {
+			VantaClient.LOG.warn("[VANTA] Waiting for the settings write failed", e);
+		}
+	}
+
+	/** Builds the file text on the calling (client) thread, then queues the disk write. */
+	private Future<?> submitSave() {
+		String text = GSON.toJson(buildRoot());
+		dirty = false;
+		return WRITER.submit(() -> writeConfig(text));
+	}
+
+	private JsonObject buildRoot() {
 		JsonObject root = new JsonObject();
 		root.addProperty("configVersion", CONFIG_VERSION);
 		root.addProperty("comment", "VANTA Client settings. Edit in-game with RIGHT SHIFT. Invalid values are reset to defaults.");
 		JsonObject settings = new JsonObject();
 		for (Setting<?> s : SettingRegistry.all()) settings.add(s.id(), s.toJson());
 		root.add("settings", settings);
+		return root;
+	}
 
+	/** Runs on the writer thread only. */
+	private void writeConfig(String text) {
 		try {
 			Files.createDirectories(dir);
 			Path tmp = dir.resolve("vanta.json.tmp");
-			Files.writeString(tmp, GSON.toJson(root), StandardCharsets.UTF_8);
+			Files.writeString(tmp, text, StandardCharsets.UTF_8);
 			try {
 				Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 			} catch (AtomicMoveNotSupportedException e) {
 				Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
 			}
-			dirty = false;
 		} catch (IOException e) {
 			lastProblem = "Could not save settings: " + e.getMessage();
 			VantaClient.LOG.error("[VANTA] Config save failed", e);
@@ -260,7 +343,8 @@ public final class ConfigManager {
 		Path bak = dir.resolve("vanta.json.bak");
 		if (!Files.exists(bak)) return;
 		try {
-			backupCurrent("before-restore");
+			backupCurrent("before-restore"); // also waits for queued writes
+
 			// Defaults first, so settings missing from the backup don't keep current values.
 			loading = true;
 			for (Setting<?> s : SettingRegistry.all()) s.setDefaultSilently();

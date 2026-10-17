@@ -17,6 +17,10 @@ draggable HUD widgets, a theme system shared by every screen, and live performan
 
 ## Getting the .jar (GitHub builds it for you)
 
+All source lives in this `vanta-client/` folder (`src/main/java/vanta/...`). When you
+upload changed files through GitHub's website, put them in the same path here; the build
+stops with an error if files land in an old `VANTA-Client-Source/` or `upload-these/` folder.
+
 1. Create a new GitHub repository (e.g. `vanta-client`).
 2. Upload **everything in this folder**, including the hidden `.github` folder,
    `gradle/`, `gradlew` and `gradlew.bat`. (Easiest: unzip, then drag the
@@ -86,7 +90,7 @@ R resets the selected widget, double-click opens its settings.
 
 ## New in stage 3
 
-- **Ping with region:** the Ping widget, pause menu and F3 panel show your region next to the ping, like `53 ms (NA Central)`. It's read from the server address first (na., nae., dal., eu., ...); otherwise the server's IP is looked up once at ipwho.is. Servers behind DDoS protection show the protection network's nearest location. Turn the online lookup off in Settings > Network.
+- **Ping with region:** the Ping widget, pause menu and F3 panel show your region next to the ping, like `53 ms (NA Central)`. It's read from the server address first (na., nae., dal., eu., ...); if you turn on the online lookup (off by default; Settings > Network or the setup wizard), the server's IP is looked up once over HTTPS. Servers behind DDoS protection show the protection network's nearest location.
 - **Home screen:** custom background images and GIFs (put them in `config/vanta/backgrounds`), a "last world" background (a small picture of where you last played, saved on your PC), a Continue card, favorite servers with live ping and player count (keys 1-9 join them), recent servers and recent worlds, all one click to join.
 - **Waypoints:** saved per world/server and dimension, on-screen markers with distance, automatic death point, rename / recolor / hide / delete in the module page. **Minimap:** terrain only (no caves, mobs or players), zoom, rotate, waypoint dots, north marker.
 - **Interface:** Clean F3 panel (replaces the debug screen with a tidy themed one), Scoreboard restyle (hide the red numbers, move it), Tab List (ping numbers, theme colors), Auto Reconnect (button + countdown, never retries a ban), Nick Hider (your name and skin on your screen only).
@@ -95,7 +99,7 @@ R resets the selected widget, double-click opens its settings.
 ## New in stage 4
 
 - **Works next to other Fabric mods:** runs on Fabric Loader 0.16 and newer (it used to demand 0.19.5). When another mod already does the same job (Zoomify, Xaero's Minimap, JourneyMap, BetterF3, Dynamic FPS, ItemPhysic, AutoReconnect, Shulker Box Tooltip...) VANTA turns its own copy off once; FancyMenu keeps its title screen. Both are switches in Settings > Compatibility. Other mods' F3 lines (Sodium etc.) show in Clean F3 under Mods.
-- **Region finder:** tries four lookup services in turn, retries failures (5 s, 20 s, 1 min, 5 min), and saves answers in `config/vanta/regions.json`, so a server you've been on shows its region instantly. A broad address hint (na., eu.) shows while the lookup refines it. DDoS-protected servers are marked as a proxy in F3.
+- **Region finder (opt-in):** tries three HTTPS lookup services in turn, retries failures (5 s, 20 s, 1 min, 5 min), and saves answers in `config/vanta/regions.json`, so a server you've been on shows its region instantly. A broad address hint (na., eu.) shows while the lookup refines it. DDoS-protected servers are marked as a proxy in F3.
 - **Ping:** VANTA now measures your real round trip (a tiny status ping every 10 s, like the server list) instead of the server-reported number, which updates slowly and includes server lag. The last-world picture is only taken when you pause, so it never causes a hitch while playing. Settings > Network.
 - **Crosshair:** Overall size (50-400%), bigger ranges for every part, and a Vanilla look shape so you can resize Minecraft's own crosshair.
 - **Clean F3:** redesigned as cards: big FPS with a frame-time graph, memory bar, position, world, target, server (region, measured vs. server ping), a **frame-time pie chart**, and other mods' info.
@@ -116,8 +120,20 @@ Not tested yet:
 ## Privacy and fair play
 
 VANTA needs no account, sends no telemetry, and stores settings only in your config folder.
-The only network request is the optional region lookup (it sends the server's IP to ipwho.is,
-once per server; switch it off in Settings > Network). It changes visuals and menus only: Keystrokes and CPS display input;
+Network requests, all optional:
+
+| Feature | Sends | Default |
+|---|---|---|
+| Region lookup | The server's IP, over HTTPS, to ipwho.is / geojs.io / ipapi.co | Off |
+| Update checker | A request to the GitHub releases API | On |
+| Tier Tagger | Player UUIDs/names you see, to the tier list sites | Off (module) |
+| Presence server | Your UUID and the tab list's UUIDs, to a server you set up | Off (no URL) |
+
+Profiles and themes never contain these server addresses, Auto Text messages, highlight
+words or your friends list, so a shared profile can't redirect your traffic or put a
+command on your keys.
+
+VANTA changes visuals and menus only: Keystrokes and CPS display input;
 nothing clicks, aims, or changes reach or hitboxes.
 
 ## Project layout

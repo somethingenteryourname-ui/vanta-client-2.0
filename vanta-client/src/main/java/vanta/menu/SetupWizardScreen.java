@@ -118,6 +118,10 @@ public final class SetupWizardScreen extends VantaScreen {
 					}, () -> styles.contains(s), false));
 					y += 25;
 				}
+				// Opt-in only: this is the one setup choice that sends anything over the internet.
+				buttons.add(new Btn(cx, y + 4, cw, 22, "Show server regions (online lookup)",
+						"Sends only the server's IP, over HTTPS, to a free geo-IP service. Off by default.",
+						() -> vanta.net.RegionLookup.ONLINE.toggle(), vanta.net.RegionLookup.ONLINE::on, false));
 			}
 			case 4 -> buttons.add(new Btn(vw / 2 - 70, vh / 2 + 40, 140, 20, "Finish", null, this::finish, () -> false, true));
 			default -> {

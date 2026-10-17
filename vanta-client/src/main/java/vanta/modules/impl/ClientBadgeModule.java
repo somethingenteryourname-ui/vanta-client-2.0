@@ -27,9 +27,9 @@ public final class ClientBadgeModule extends Module {
 	public final BoolSetting inTabList = setting(new BoolSetting(key("tab_list"), "Show in tab list", "Logos in the player list too.", true));
 	public final BoolSetting share = setting(new BoolSetting(key("share"), "Let others see I use VANTA",
 			"Tell servers running the VANTA Bridge plugin (and your presence server, if set) that you use VANTA. Off = you still see others.", true));
-	public final TextSetting presenceUrl = setting(new TextSetting(key("presence_url"), "Presence server",
+	public final TextSetting presenceUrl = (TextSetting) setting(new TextSetting(key("presence_url"), "Presence server",
 			"Optional. A presence server URL you and your friends share (see presence-server in the source) to see badges on any server. "
-			+ "Empty = off. Sends only UUIDs.", "", 200));
+			+ "Empty = off. Sends only UUIDs.", "", 200)).sensitive();
 
 	public ClientBadgeModule() {
 		super("client_badge", "Client Badge", "Your name and the VANTA logo in F5/freelook, plus the logo next to other VANTA players' names.",

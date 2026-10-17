@@ -22,8 +22,8 @@ public final class AutoTextModule extends Module {
 				Category.QOL, false);
 		String[] defaults = {"gg", "/spawn", ""};
 		for (int i = 0; i < messages.length; i++) {
-			messages[i] = setting(new TextSetting(key("message_" + (i + 1)), "Message " + (i + 1),
-					"Sent when you press Auto Text " + (i + 1) + ". Start with / for a command.", defaults[i], 200));
+			messages[i] = (TextSetting) setting(new TextSetting(key("message_" + (i + 1)), "Message " + (i + 1),
+					"Sent when you press Auto Text " + (i + 1) + ". Start with / for a command.", defaults[i], 200)).sensitive();
 		}
 	}
 
