@@ -20,6 +20,7 @@ public abstract class TextHudModule extends HudModule {
 	private int[][] partWidths = new int[0][];
 	private int contentWidth;
 	private HudStyle.Format builtFormat;
+	private vanta.ui.UiFont builtFont;
 
 	protected TextHudModule(String id, String name, String description, Category category, boolean enabledByDefault, int defaultX, int defaultY) {
 		super(id, name, description, category, enabledByDefault, defaultX, defaultY);
@@ -33,7 +34,7 @@ public abstract class TextHudModule extends HudModule {
 	}
 
 	protected final void setLine(String label, String value) {
-		if (labels.length == 1 && labels[0].equals(label) && values[0].equals(value) && builtFormat == HudStyle.FORMAT.get()) return;
+		if (labels.length == 1 && labels[0].equals(label) && values[0].equals(value) && builtFormat == HudStyle.FORMAT.get() && builtFont == Ui.currentFont()) return;
 		setLines(new String[]{label}, new String[]{value});
 	}
 
@@ -42,6 +43,7 @@ public abstract class TextHudModule extends HudModule {
 	private void rebuild() {
 		HudStyle.Format f = HudStyle.FORMAT.get();
 		builtFormat = f;
+		builtFont = Ui.currentFont();
 		parts = new String[labels.length][];
 		partWidths = new int[labels.length][];
 		int max = 0;
@@ -74,14 +76,14 @@ public abstract class TextHudModule extends HudModule {
 
 	@Override
 	public int width() {
-		if (builtFormat != HudStyle.FORMAT.get()) rebuild();
+		if (builtFormat != HudStyle.FORMAT.get() || builtFont != Ui.currentFont()) rebuild();
 		return Math.max(20, contentWidth + pad() * 2);
 	}
 	@Override public int height() { return Math.max(1, labels.length) * LINE + pad() * 2 - 2; }
 
 	@Override
 	protected void renderContent(GuiGraphics g, boolean editor) {
-		if (builtFormat != HudStyle.FORMAT.get()) rebuild();
+		if (builtFormat != HudStyle.FORMAT.get() || builtFont != Ui.currentFont()) rebuild();
 		int y = pad();
 		int valueColor = valueColor();
 		int labelColor = labelColor();

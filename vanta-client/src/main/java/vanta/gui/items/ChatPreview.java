@@ -68,7 +68,7 @@ public final class ChatPreview extends Item {
 			int tx = x0 + 4, ty = yb - lineH + 1;
 			if (!stamp.isEmpty()) {
 				g.drawString(Ui.font(), stamp, tx, ty, stampColor, true);
-				tx += Ui.width(stamp);
+				tx += Ui.font().width(stamp);
 			}
 			String who = lines[i][0];
 			if (who.equals("System")) {
@@ -77,11 +77,11 @@ public final class ChatPreview extends Item {
 			}
 			if (!who.isEmpty()) {
 				g.drawString(Ui.font(), who + " ", tx, ty, 0xFFFFFFFF, true);
-				tx += Ui.width(who + " ");
+				tx += Ui.font().width(who + " ");
 			}
 			g.drawString(Ui.font(), lines[i][1], tx, ty, who.isEmpty() ? 0xFFFF5555 : 0xFFFFFFFF, true);
 			if (on && module.stack.on() && i == lines.length - 1) {
-				g.drawString(Ui.font(), " (x3)", tx + Ui.width(lines[i][1]), ty, 0xFF9AA0AA, true);
+				g.drawString(Ui.font(), " (x3)", tx + Ui.font().width(lines[i][1]), ty, 0xFF9AA0AA, true);
 			}
 		}
 		g.disableScissor();

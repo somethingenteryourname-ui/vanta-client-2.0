@@ -91,7 +91,7 @@ public final class ChatScreenExtras {
 				String s = "Searching chat: type to filter  -  Enter or Esc to stop";
 				int w = Ui.width(s) + 10, y = height - 14 - TAB_H - 2;
 				Ui.roundRect(g, 2, y, w, TAB_H, 3, Colors.withAlpha(Theme.accent(), 0.85f));
-				g.drawString(Ui.font(), s, 7, y + 2, Colors.contrastText(Theme.accent()), false);
+				Ui.draw(g, s, 7, y + 2, Colors.contrastText(Theme.accent()), false);
 			} else {
 				for (Map.Entry<ChatTabs.Tab, Box> e : tabBoxes(height)) {
 					Box b = e.getValue();
@@ -100,7 +100,7 @@ public final class ChatScreenExtras {
 					int fill = sel ? Colors.withAlpha(Theme.accent(), 0.9f) : Colors.withAlpha(Theme.panel(), hov ? 0.95f : 0.75f);
 					Ui.roundRect(g, b.x(), b.y(), b.w(), b.h(), 3, fill);
 					int text = sel ? Colors.contrastText(Theme.accent()) : ChatTabs.unread(e.getKey()) > 0 ? Theme.accent() | 0xFF000000 : Theme.text() | 0xFF000000;
-					g.drawString(Ui.font(), label(e.getKey()), b.x() + 5, b.y() + 2, text, false);
+					Ui.draw(g, label(e.getKey()), b.x() + 5, b.y() + 2, text, false);
 				}
 			}
 		}
@@ -108,7 +108,7 @@ public final class ChatScreenExtras {
 		if (m.emojiButton.on()) {
 			Box b = emojiButton(width, height, m);
 			boolean hov = b.has(mx, my);
-			g.drawString(Ui.font(), "☺", b.x() + 2, b.y() + 2, hov || pickerOpen ? Theme.accent() | 0xFF000000 : 0xFFB0B4BC, false);
+			Ui.draw(g, "☺", b.x() + 2, b.y() + 2, hov || pickerOpen ? Theme.accent() | 0xFF000000 : 0xFFB0B4BC, false);
 			if (pickerOpen) drawPicker(g, width, height, mx, my);
 		}
 
@@ -116,7 +116,7 @@ public final class ChatScreenExtras {
 			String s = "Copied!";
 			int w = Ui.width(s) + 8;
 			Ui.roundRect(g, mx + 6, my - 12, w, 11, 3, Colors.withAlpha(Theme.accent(), 0.9f));
-			g.drawString(Ui.font(), s, mx + 10, my - 10, Colors.contrastText(Theme.accent()), false);
+			Ui.draw(g, s, mx + 10, my - 10, Colors.contrastText(Theme.accent()), false);
 		}
 	}
 
@@ -135,11 +135,11 @@ public final class ChatScreenExtras {
 			}
 			String sym = e.getValue();
 			String shown = Ui.width(sym) > EMOJI_CELL - 2 ? sym.substring(0, 1) + ".." : sym;
-			g.drawString(Ui.font(), shown, cx + (EMOJI_CELL - Ui.width(shown)) / 2, cy + 3, 0xFFFFFFFF, false);
+			Ui.draw(g, shown, cx + (EMOJI_CELL - Ui.width(shown)) / 2, cy + 3, 0xFFFFFFFF, false);
 			i++;
 		}
 		String foot = hovered != null ? hovered : "Click to insert. Or type :name:";
-		g.drawString(Ui.font(), Ui.ellipsize(foot, p.w() - 8), p.x() + 4, p.y() + p.h() - 11, Theme.textDim() | 0xFF000000, false);
+		Ui.draw(g, Ui.ellipsize(foot, p.w() - 8), p.x() + 4, p.y() + p.h() - 11, Theme.textDim() | 0xFF000000, false);
 	}
 
 	// ------------------------------------------------------------------ input

@@ -72,14 +72,14 @@ public final class PauseMenuExtras {
 		int panelH = Math.min(height - 56, 196);
 
 		if (!m.pausePanel.on() || panelW < 110 || panelH < 150) {
-			buttons.add(Button.builder(Component.literal(Theme.clientName()), b -> mc.setScreen(new VantaMenuScreen(screen)))
+			buttons.add(Button.builder(Component.literal(Theme.clientName()), b -> mc.setScreen(VantaMenuScreen.open(screen)))
 					.bounds(6, height - 26, 64, 20).build());
 			return;
 		}
 
 		int bx = panelX + 8, bw = panelW - 16, bh = 18;
 		int by = panelY + panelH - 4 * (bh + 4) - 4;
-		buttons.add(Button.builder(Component.literal(Theme.clientName() + " Menu"), b -> mc.setScreen(new VantaMenuScreen(screen)))
+		buttons.add(Button.builder(Component.literal(Theme.clientName() + " Menu"), b -> mc.setScreen(VantaMenuScreen.open(screen)))
 				.bounds(bx, by, bw, bh).build());
 		buttons.add(Button.builder(Component.literal("HUD Editor"), b -> mc.setScreen(new HudEditorScreen(screen)))
 				.bounds(bx, by + (bh + 4), bw, bh).build());

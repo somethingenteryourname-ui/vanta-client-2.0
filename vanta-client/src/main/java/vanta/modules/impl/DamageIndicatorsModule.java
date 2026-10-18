@@ -121,7 +121,7 @@ public final class DamageIndicatorsModule extends Module {
 			g.pose().translate(OUT[0], OUT[1]);
 			g.pose().scale(s);
 			int w = Ui.width(p.text());
-			g.drawString(Ui.font(), p.text(), -w / 2, -4, Colors.withAlpha(p.color(), alpha), true);
+			Ui.draw(g, p.text(), -w / 2, -4, Colors.withAlpha(p.color(), alpha), true);
 			g.pose().popMatrix();
 		}
 	}

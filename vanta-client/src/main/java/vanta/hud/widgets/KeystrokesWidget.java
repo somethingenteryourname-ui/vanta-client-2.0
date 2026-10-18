@@ -106,7 +106,7 @@ public final class KeystrokesWidget extends HudModule {
 			g.pose().translate(x + w / 2f, y + 11);
 			g.pose().scale(0.5f);
 			int sw = Ui.width(sub);
-			g.drawString(Ui.font(), sub, -sw / 2, 0, color, false);
+			Ui.draw(g, sub, -sw / 2, 0, color, false);
 			g.pose().popMatrix();
 		}
 	}

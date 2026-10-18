@@ -49,8 +49,8 @@ public final class VantaToast implements Toast {
 		if (icon != null) Ui.icon(g, icon, 8, (h - 9) / 2, accent | 0xFF000000);
 		int tx = icon != null ? 22 : 9;
 		int maxW = w - tx - 6;
-		g.drawString(font, Ui.ellipsize(title, maxW), tx, 5, Theme.text() | 0xFF000000, false);
-		g.drawString(font, Ui.ellipsize(message, maxW), tx, 16, Theme.textDim() | 0xFF000000, false);
+		Ui.draw(g, Ui.ellipsize(title, maxW), tx, 5, Theme.text() | 0xFF000000, false);
+		Ui.draw(g, Ui.ellipsize(message, maxW), tx, 16, Theme.textDim() | 0xFF000000, false);
 		float left = 1f - Math.min(1f, fullyVisibleForMs / (float) duration);
 		Ui.rect(g, 4, h - 2, Math.round((w - 8) * left), 1, Colors.withAlpha(accent, 0.8f));
 	}

@@ -210,7 +210,7 @@ public final class Logo {
 				g.pose().pushMatrix();
 				g.pose().translate(nx + cx, baseY + rise);
 				g.pose().scale(ts);
-				g.drawString(Ui.font(), ch, 0, 0, Colors.withAlpha(color, lt * op), false);
+				Ui.draw(g, ch, 0, 0, Colors.withAlpha(color, lt * op), false);
 				g.pose().popMatrix();
 			}
 			cx += cw;

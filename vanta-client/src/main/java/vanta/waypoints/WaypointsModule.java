@@ -149,13 +149,13 @@ public final class WaypointsModule extends Module {
 			String name = w.name;
 			int tw = Ui.width(name);
 			g.fill(-tw / 2 - 2, -16, tw / 2 + 3, -6, looking ? 0xB0000000 : 0x80000000);
-			g.drawString(Ui.font(), name, -tw / 2, -15, Colors.mix(color, 0xFFFFFFFF, 0.35f), false);
+			Ui.draw(g, name, -tw / 2, -15, Colors.mix(color, 0xFFFFFFFF, 0.35f), false);
 		}
 		if (instance.distance.on()) {
 			String text = dist >= 1000 ? String.format(java.util.Locale.ROOT, "%.1fk", dist / 1000.0) : String.valueOf((int) dist) + "m";
 			int tw = Ui.width(text);
 			g.fill(-tw / 2 - 2, ty - 1, tw / 2 + 3, ty + 9, 0x80000000);
-			g.drawString(Ui.font(), text, -tw / 2, ty, 0xFFE5E7EB, false);
+			Ui.draw(g, text, -tw / 2, ty, 0xFFE5E7EB, false);
 		}
 		g.pose().popMatrix();
 	}

@@ -153,6 +153,24 @@ public final class Theme {
 	private static final List<Setting<?>> SETTINGS = new ArrayList<>();
 	private static final MenuPage OWNER = MenuPage.THEME;
 
+	// Format (layout of the whole menu)
+	public static final ChoiceSetting<UiFormat> FORMAT = (ChoiceSetting<UiFormat>) add(new ChoiceSetting<>("theme.format", "Interface format",
+			"The overall layout and look of the VANTA menu. Pick one on the Theme page.", UiFormat.VANTA)).hidden();
+	public static final ChoiceSetting<UiFormat.CardLook> CARD_LOOK = add(new ChoiceSetting<>("theme.card_look", "Module card look",
+			"Standard cards, rows with an icon, or big tiles.", UiFormat.CardLook.STANDARD));
+	public static final TextSetting CLICKGUI_PANELS = (TextSetting) add(new TextSetting("theme.clickgui_panels", "Click GUI panels",
+			"Where the Click GUI panels are and which are folded.", "", 800)).hidden();
+	public static final BoolSetting BLUR = add(new BoolSetting("theme.blur", "Blur the game behind menus",
+			"Frosted-glass blur behind VANTA menus while you're in a world (uses Minecraft's menu blur strength).", false));
+
+	// Fonts
+	public static final ChoiceSetting<vanta.ui.UiFont> FONT = add(new ChoiceSetting<>("theme.font", "Font",
+			"The font for every VANTA menu, screen and notification.", vanta.ui.UiFont.MINECRAFT));
+	public static final BoolSetting HUD_SAME_FONT = add(new BoolSetting("theme.hud_same_font", "HUD uses the same font",
+			"Use the menu font for HUD widgets too. Turn off to pick a separate HUD font.", true));
+	public static final ChoiceSetting<vanta.ui.UiFont> HUD_FONT = add(new ChoiceSetting<>("theme.hud_font", "HUD font",
+			"The font for HUD widgets, waypoints and on-screen warnings (when not the same as menus).", vanta.ui.UiFont.MINECRAFT));
+
 	// Identity & colors
 	public static final TextSetting CLIENT_NAME = add(new TextSetting("theme.client_name", "Client name",
 			"The name shown in the logo and headers.", "VANTA", 16));
@@ -185,7 +203,7 @@ public final class Theme {
 	public static final IntSetting PANEL_OPACITY = add(new IntSetting("theme.panel_opacity", "Panel opacity",
 			"How solid panels look. Lower values let the background show through.", 92, 20, 100, 1, "%"));
 	public static final IntSetting CORNER_RADIUS = add(new IntSetting("theme.corner_radius", "Corner radius",
-			"Roundness of panels, cards and buttons.", 3, 0, 6, 1, "px"));
+			"Roundness of panels, cards and buttons.", 3, 0, 12, 1, "px"));
 	public static final IntSetting BORDER_WIDTH = add(new IntSetting("theme.border_width", "Border width",
 			"Thickness of outlines. 0 removes them.", 1, 0, 2, 1, "px"));
 	public static final BoolSetting SHADOWS = add(new BoolSetting("theme.shadows", "Shadows",
@@ -368,6 +386,8 @@ public final class Theme {
 	}
 
 	public static int radius() { return CORNER_RADIUS.value(); }
+	public static UiFormat.Shell shell() { return FORMAT.get().shell; }
+	public static vanta.ui.UiFont hudFont() { return HUD_SAME_FONT.on() ? FONT.get() : HUD_FONT.get(); }
 	public static int borderWidth() { return BORDER_WIDTH.value(); }
 	public static float uiScale() { return UI_SCALE.value() / 100f; }
 	public static float headingScale() { return FONT_SCALE.value() / 100f; }

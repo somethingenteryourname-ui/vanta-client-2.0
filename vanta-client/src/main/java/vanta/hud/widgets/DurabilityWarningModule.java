@@ -94,6 +94,6 @@ public final class DurabilityWarningModule extends Module {
 		Ui.roundRect(g, x, y, w, 20, 4, Colors.withAlpha(0xFF1A0E0E, 0.75f * alpha));
 		Ui.rect(g, x, y + 3, 2, 14, Colors.withAlpha(0xFFFF5040, alpha));
 		g.renderItem(m.shownStack, x + 5, y + 2);
-		g.drawString(Ui.font(), m.shownText, x + 24, y + 6, Colors.withAlpha(Colors.mix(0xFFFFB020, 0xFFFF5040, pulse - 0.5f), alpha), true);
+		Ui.draw(g, m.shownText, x + 24, y + 6, Colors.withAlpha(Colors.mix(0xFFFFB020, 0xFFFF5040, pulse - 0.5f), alpha), true);
 	}
 }

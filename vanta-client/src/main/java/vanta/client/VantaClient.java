@@ -84,7 +84,7 @@ public final class VantaClient implements ClientModInitializer {
 				vanta.waypoints.WaypointsModule.onDeath(client);
 				ScreenEvents.afterRender(screen).register((s, g, mx, my, delta) -> {
 					String text = DeathCoordsModule.deathText();
-					if (text != null) g.drawCenteredString(Ui.font(), text, s.width / 2, s.height - 22, 0xFFBFBFBF);
+					if (text != null) vanta.ui.Ui.draw(g, text, s.width / 2 - vanta.ui.Ui.width(text) / 2, s.height - 22, 0xFFBFBFBF, true);
 				});
 			}
 		});
@@ -97,7 +97,7 @@ public final class VantaClient implements ClientModInitializer {
 			ModuleRegistry.syncAll(); // re-apply vanilla-side state (toggle sprint, hitboxes) now that options exist
 		}
 		while (VantaKeys.OPEN_MENU.consumeClick()) {
-			if (client.screen == null) client.setScreen(new VantaMenuScreen(null));
+			if (client.screen == null) client.setScreen(VantaMenuScreen.open(null));
 		}
 		while (VantaKeys.HUD_EDITOR.consumeClick()) {
 			if (client.screen == null) client.setScreen(new HudEditorScreen(null));

@@ -261,5 +261,64 @@ public final class Icons {
 			"#########",
 			"........."};
 
+	public static final String[] CLOSE = {
+			".........",
+			".#.....#.",
+			"..#...#..",
+			"...#.#...",
+			"....#....",
+			"...#.#...",
+			"..#...#..",
+			".#.....#.",
+			"........."};
+
+	public static final String[] SHIELD = {
+			"#########",
+			"#.......#",
+			"#.......#",
+			"#.......#",
+			".#.....#.",
+			".#.....#.",
+			"..#...#..",
+			"...#.#...",
+			"....#...."};
+
+	public static final String[] SPARK = {
+			"....#....",
+			"....#....",
+			"...###...",
+			"#########",
+			"...###...",
+			"....#....",
+			"....#....",
+			".........",
+			"........."};
+
+	private static final java.util.Map<String, String[]> BY_MODULE = java.util.Map.ofEntries(
+			java.util.Map.entry("zoom", SEARCH), java.util.Map.entry("freelook", EYE), java.util.Map.entry("crosshair", TARGET),
+			java.util.Map.entry("chat", CHAT), java.util.Map.entry("cosmetics", CAPE), java.util.Map.entry("friends", FRIENDS),
+			java.util.Map.entry("fullbright", SPARK), java.util.Map.entry("totem", SHIELD), java.util.Map.entry("totem_pops", SHIELD),
+			java.util.Map.entry("waypoints", GLOBE), java.util.Map.entry("minimap", GLOBE), java.util.Map.entry("profiles", PROFILE),
+			java.util.Map.entry("title_screen", HOME), java.util.Map.entry("menu_style", PALETTE), java.util.Map.entry("cursor", TARGET),
+			java.util.Map.entry("notifications", INFO), java.util.Map.entry("update_checker", STAR), java.util.Map.entry("loading_screen", PLAY),
+			java.util.Map.entry("client_badge", STAR), java.util.Map.entry("nick_hider", PROFILE), java.util.Map.entry("auto_reconnect", RESET),
+			java.util.Map.entry("hud_tweaks", HUD), java.util.Map.entry("info_panel", INFO), java.util.Map.entry("screen_effects", EYE),
+			java.util.Map.entry("view_model", CUBE), java.util.Map.entry("item_physics", CUBE), java.util.Map.entry("optimizations", BOLT));
+
+	/** An icon for a module: its own if it has one, otherwise its category's. */
+	public static String[] forModule(vanta.modules.Module m) {
+		String[] own = BY_MODULE.get(m.id());
+		if (own != null) return own;
+		return switch (m.category()) {
+			case PERFORMANCE -> BOLT;
+			case VISUALS -> EYE;
+			case PVP -> TARGET;
+			case HUD -> HUD;
+			case INTERFACE -> GRID;
+			case QOL -> STAR;
+			case EXPERIMENTAL -> INFO;
+		};
+	}
+
 	public static final int SIZE = 9;
 }

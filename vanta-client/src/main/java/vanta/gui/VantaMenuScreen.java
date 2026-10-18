@@ -70,7 +70,6 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	private Item dragItem;
 	private boolean needsRebuild = true;
 	private long pageSwitchedAt;
-	private float navIndicatorY = -1;
 	private long lastFrameNanos;
 	private int layoutSignature;
 
@@ -83,7 +82,24 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	private int panelX, panelY, panelW, panelH, sidebarW, sidebarX, contentX, contentW;
 	private int navTop, navItemH;
 	private int bodyX, bodyY, bodyW, bodyH;
-	private int searchX, searchY, searchW;
+	private int searchX, searchY, searchW, searchH = 16;
+	private vanta.branding.UiFormat.Shell shell = vanta.branding.UiFormat.Shell.SIDEBAR;
+	/** Where each page's button is, for every layout (sidebar, tabs, rail, dock). */
+	private record NavSlot(MenuPage page, int x, int y, int w, int h, boolean iconOnly) {
+	}
+	private record Hit(int x, int y, int w, int h, Runnable action) {
+		boolean has(double mx, double my) { return Ui.inside(mx, my, x, y, w, h); }
+	}
+	private final List<NavSlot> nav = new ArrayList<>();
+	private final List<Hit> chromeHits = new ArrayList<>();
+	private int headerH;
+	private int closeX = -1, closeY;
+	private float indX = -1, indY = -1, indW = -1;
+	/** Vertical navigation that doesn't fit scrolls (sidebar, rail, Liquid). */
+	private int navClipY0, navClipY1, navMaxScroll;
+	private float navScroll;
+	private boolean headerChipsFit, chipCounts = true;
+
 	private int offsetX, offsetY;
 	private int bodyOffsetX;
 
@@ -122,15 +138,34 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		h = h * 31 + (Theme.CATEGORY_COLORS.on() ? 1 : 0);
 		h = h * 31 + (MenuSettings.SHOW_DESCRIPTIONS.on() ? 1 : 0);
 		h = h * 31 + Theme.TOGGLE_STYLE.get().ordinal();
+		h = h * 31 + Theme.FONT.get().ordinal();
+		h = h * 31 + (Theme.HUD_SAME_FONT.on() ? 1 : 0);
 		h = h * 31 + HudStyle.FORMAT.get().ordinal();
+		h = h * 31 + Theme.FORMAT.get().ordinal();
+		h = h * 31 + Theme.CARD_LOOK.get().ordinal();
+		h = h * 31 + (Theme.SIDEBAR_ICONS.on() ? 1 : 0);
 		return h;
+	}
+
+	/** The menu to open from the menu key: the Click GUI when that format is chosen, otherwise this menu. */
+	public static Screen open(Screen parent) {
+		if (Theme.shell() == vanta.branding.UiFormat.Shell.CLICKGUI) return new ClickGuiScreen(parent);
+		return new VantaMenuScreen(parent);
 	}
 
 	@Override
 	protected void layout() {
 		layoutSignature = computeSignature();
+		shell = Theme.shell();
+		if (shell == vanta.branding.UiFormat.Shell.CLICKGUI) shell = vanta.branding.UiFormat.Shell.SIDEBAR; // full menu from the Click GUI
+		nav.clear();
+		chromeHits.clear();
+		closeX = -1;
+		navMaxScroll = 0;
+		navClipY0 = 0;
+		navClipY1 = vh;
+		headerChipsFit = false;
 		boolean labels = Theme.SIDEBAR_LABELS.on();
-		sidebarW = labels ? Math.max(72, Math.min(Theme.SIDEBAR_WIDTH.value(), vw / 3)) : Math.max(30, Math.min(Theme.SIDEBAR_WIDTH.value(), 40));
 		panelW = Math.max(Math.min(380, vw - 8), Math.min(vw - 16, Math.round(vw * Theme.MENU_WIDTH.value() / 100f)));
 		panelH = Math.min(vh - 16, Math.max(230, Math.round(vh * Theme.MENU_HEIGHT.value() / 100f)));
 		panelX = switch (Theme.MENU_POSITION.get()) {
@@ -139,35 +174,147 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 			case CENTER -> (vw - panelW) / 2;
 		};
 		panelY = (vh - panelH) / 2;
-		boolean right = Theme.SIDEBAR_SIDE.get() == Theme.Side.RIGHT;
-		sidebarX = right ? panelX + panelW - sidebarW : panelX;
-		contentX = right ? panelX : panelX + sidebarW;
-		contentW = panelW - sidebarW;
-
-		navTop = Theme.SHOW_LOGO.on() && labels ? 36 : 10;
 		int count = MenuPage.values().length;
-		int available = panelH - navTop - 22;
-		navItemH = Math.max(12, Math.min(Theme.NAV_ITEM_HEIGHT.value(), available / count - 2));
+		boolean footer = Theme.SHOW_FOOTER.on();
+		searchH = 16;
 
+		switch (shell) {
+			case SIDEBAR, RAIL -> {
+				boolean rail = shell == vanta.branding.UiFormat.Shell.RAIL;
+				if (rail) labels = false;
+				sidebarW = labels ? Math.max(72, Math.min(Theme.SIDEBAR_WIDTH.value(), vw / 3)) : rail ? 34 : Math.max(30, Math.min(Theme.SIDEBAR_WIDTH.value(), 40));
+				boolean right = Theme.SIDEBAR_SIDE.get() == Theme.Side.RIGHT;
+				sidebarX = right ? panelX + panelW - sidebarW : panelX;
+				contentX = right ? panelX : panelX + sidebarW;
+				contentW = panelW - sidebarW;
+				navTop = (Theme.SHOW_LOGO.on() && labels) || rail ? 36 : 10;
+				int available = panelH - navTop - (labels && !rail ? 22 : 8);
+				navItemH = Math.max(14, Math.min(rail ? 20 : Theme.NAV_ITEM_HEIGHT.value(), available / count - 2));
+				for (MenuPage p : MenuPage.values()) {
+					nav.add(new NavSlot(p, sidebarX + 6, panelY + navTop + p.ordinal() * (navItemH + 2), sidebarW - 12, navItemH, !labels));
+				}
+				setNavClip(panelY + navTop, available, count);
+				headerH = Theme.SHOW_SUBTITLES.on() ? 40 : 32;
+				bodyY = panelY + headerH;
+				searchW = Math.max(90, Math.min(170, contentW * 2 / 5));
+				searchX = contentX + contentW - 10 - searchW;
+				searchY = panelY + 11;
+			}
+			case LIQUID -> {
+				footer = false;
+				sidebarW = Math.max(84, Math.min(Theme.SIDEBAR_WIDTH.value() + 8, Math.max(84, vw / 4)));
+				boolean right = Theme.SIDEBAR_SIDE.get() == Theme.Side.RIGHT;
+				sidebarX = right ? panelX + panelW - sidebarW : panelX;
+				contentX = right ? panelX : panelX + sidebarW;
+				contentW = panelW - sidebarW;
+				headerH = 34;
+				navTop = headerH + 8;
+				int bottomButtons = 2 * 20 + 14;
+				int available = panelH - navTop - bottomButtons;
+				navItemH = Math.max(14, Math.min(20, available / count - 2));
+				for (MenuPage p : MenuPage.values()) {
+					nav.add(new NavSlot(p, sidebarX + 8, panelY + navTop + p.ordinal() * (navItemH + 2), sidebarW - 16, navItemH, false));
+				}
+				setNavClip(panelY + navTop, available, count);
+				int by = panelY + panelH - 8 - 18;
+				chromeHits.add(new Hit(sidebarX + 8, by - 22, sidebarW - 16, 18, this::openHudEditor));
+				chromeHits.add(new Hit(sidebarX + 8, by, sidebarW - 16, 18, () -> openPage(MenuPage.THEME)));
+				searchH = 18;
+				searchX = contentX + 10;
+				searchY = panelY + 8;
+				searchW = Math.max(100, Math.min(220, contentW * 2 / 5));
+				closeX = contentX + contentW - 8 - 18;
+				closeY = panelY + 8;
+				bodyY = panelY + headerH + 8;
+				int room = closeX - 12 - (searchX + 10);
+				chipCounts = true;
+				int chipsW = chipsWidth(true);
+				if (room - chipsW < 90) {
+					chipCounts = false;
+					chipsW = chipsWidth(false);
+				}
+				if (room - chipsW < searchW) searchW = Math.max(90, room - chipsW);
+				headerChipsFit = room - searchW >= chipsW;
+			}
+			case TABS, DOCK -> {
+				boolean dock = shell == vanta.branding.UiFormat.Shell.DOCK;
+				if (dock) footer = false;
+				sidebarW = 0;
+				sidebarX = panelX;
+				contentX = panelX;
+				contentW = panelW;
+				closeX = panelX + panelW - 8 - 16;
+				closeY = panelY + 8;
+				searchW = Math.max(90, Math.min(170, panelW / 4));
+				searchX = closeX - 6 - searchW;
+				searchY = panelY + 8;
+				if (!dock) {
+					// tabs: labels when they fit, otherwise icons (the current page keeps its label)
+					int ty = panelY + 30;
+					int total = 0;
+					for (MenuPage p : MenuPage.values()) total += Ui.width(p.title) + (Theme.SIDEBAR_ICONS.on() ? 26 : 14) + 2;
+					boolean iconsOnly = total > panelW - 20;
+					int x = panelX + 10;
+					for (MenuPage p : MenuPage.values()) {
+						boolean io = iconsOnly && p != page;
+						int w = io ? 18 : Ui.width(p.title) + (Theme.SIDEBAR_ICONS.on() ? 26 : 14);
+						nav.add(new NavSlot(p, x, ty, w, 18, io));
+						x += w + 2;
+					}
+					headerH = 54;
+				} else {
+					int n = MenuPage.values().length;
+					int cell = Math.max(14, Math.min(20, (panelW - 40) / n - 3));
+					int dockW = n * (cell + 3) + 9;
+					int dx = panelX + (panelW - dockW) / 2 + 6;
+					int dy = panelY + panelH - 8 - cell - 6;
+					for (MenuPage p : MenuPage.values()) nav.add(new NavSlot(p, dx + p.ordinal() * (cell + 3), dy + 3, cell, cell, true));
+					headerH = 32;
+				}
+				bodyY = panelY + headerH;
+			}
+			default -> {
+			}
+		}
 		bodyX = contentX + 10;
-		bodyY = panelY + (Theme.SHOW_SUBTITLES.on() ? 40 : 32);
 		bodyW = contentW - 20;
-		bodyH = panelY + panelH - (Theme.SHOW_FOOTER.on() ? 18 : 8) - bodyY;
-
-		searchW = Math.max(90, Math.min(170, contentW * 2 / 5));
-		searchX = contentX + contentW - 10 - searchW;
-		searchY = panelY + 11;
+		int bottom = switch (shell) {
+			case DOCK -> 8 + Math.max(14, Math.min(20, (panelW - 40) / count - 3)) + 14;
+			case LIQUID -> 8;
+			default -> footer ? 18 : 8;
+		};
+		bodyH = panelY + panelH - bottom - bodyY;
 
 		String value = search != null ? search.getValue() : query;
-		search = new EditBox(font, toReal(searchX + 16), toReal(searchY + 4), toReal(searchW - 20), toReal(10), Component.literal("Search"));
+		search = new EditBox(font, toReal(searchX + 16), toReal(searchY + (searchH - 8) / 2), toReal(searchW - 20), toReal(10), Component.literal("Search"));
 		search.setBordered(false);
 		search.setMaxLength(48);
 		search.setTextColor(Theme.text());
-		search.setHint(Component.literal("Search everything"));
+		search.setHint(Component.literal(shell == vanta.branding.UiFormat.Shell.LIQUID ? "Search anything..." : "Search everything"));
 		search.setValue(value);
 		search.setResponder(this::onSearchChanged);
 		addRenderableWidget(search);
 		needsRebuild = true;
+	}
+
+	private boolean verticalNav() {
+		return shell == vanta.branding.UiFormat.Shell.SIDEBAR || shell == vanta.branding.UiFormat.Shell.RAIL || shell == vanta.branding.UiFormat.Shell.LIQUID;
+	}
+
+	private void setNavClip(int top, int available, int count) {
+		navClipY0 = top - 1;
+		navClipY1 = top + available;
+		navMaxScroll = Math.max(0, count * (navItemH + 2) - 2 - available);
+		// keep the current page in view
+		int at = activePage().ordinal() * (navItemH + 2);
+		if (at < navScroll) navScroll = at;
+		else if (at + navItemH > navScroll + available) navScroll = at + navItemH - available;
+		navScroll = Math.max(0, Math.min(navMaxScroll, navScroll));
+	}
+
+	/** A nav slot's y on screen (vertical navigation scrolls). */
+	private int slotY(NavSlot n) {
+		return verticalNav() ? n.y() - Math.round(navScroll) : n.y();
 	}
 
 	// ------------------------------------------------------------------ content
@@ -259,7 +406,7 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		if (list) {
 			for (Item c : cards) lb.full(c, ModuleCard.listHeight());
 		} else {
-			lb.grid(cards, Math.round(Theme.CARD_WIDTH.value() * Theme.density()), ModuleCard.gridHeight());
+			lb.grid(cards, ModuleCard.gridMinWidth(bodyW, lb.gap), ModuleCard.gridHeight());
 		}
 	}
 
@@ -308,7 +455,7 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		quick.add(new BasicItems.ButtonItem("Crosshair", false, () -> openPage(MenuPage.CROSSHAIR), "Design your crosshair."));
 		quick.add(new BasicItems.ButtonItem("Chat", false, () -> openPage(MenuPage.CHAT), "Chat look, timestamps, mentions and filters."));
 		quick.add(new BasicItems.ButtonItem("Profiles", false, () -> openPage(MenuPage.PROFILES), "Switch your whole setup."));
-		quick.add(new BasicItems.ButtonItem("Theme", false, () -> openPage(MenuPage.THEME), "Colors, layout and animation."));
+		quick.add(new BasicItems.ButtonItem("Formats", false, () -> openPage(MenuPage.THEME), "Change the whole look: Liquid Glass, Dock, Click GUI and more."));
 		lb.row(quick, 92, 18);
 
 		List<Module> recent = ModuleRegistry.recentlyChanged(3);
@@ -343,6 +490,11 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	// ---- Modules
 
 	private void buildModules(LayoutBuilder lb) {
+		if (shell == vanta.branding.UiFormat.Shell.LIQUID && headerChipsFit) {
+			// the filter chips live in the top bar
+			moduleCards(lb, ModuleRegistry.sorted(categoryFilter));
+			return;
+		}
 		List<Item> chips = new ArrayList<>();
 		chips.add(chip("All", null));
 		for (Category c : ModuleRegistry.usedCategories()) chips.add(chip(c.label, c));
@@ -677,6 +829,25 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	// ---- Theme
 
 	private void buildTheme(LayoutBuilder lb) {
+		section(lb, "Interface format", "A whole layout and look in one click: " + Theme.FORMAT.get().label() + " is on. Fine-tune anything below.");
+		List<Item> formats = new ArrayList<>();
+		for (vanta.branding.UiFormat f : vanta.branding.UiFormat.values()) formats.add(new vanta.gui.items.FormatCard(f, this));
+		lb.grid(formats, 96, 74);
+		settingRows(lb, List.of(Theme.CARD_LOOK, Theme.BLUR));
+
+		section(lb, "Font", "Used for every VANTA menu, screen, notification and (unless you split it) the HUD. "
+				+ Theme.FONT.get().label() + " is on.");
+		List<Item> fonts = new ArrayList<>();
+		for (vanta.ui.UiFont f : vanta.ui.UiFont.values()) fonts.add(new vanta.gui.items.FontCard(f, Theme.FONT, this));
+		lb.grid(fonts, 112, vanta.gui.items.FontCard.height());
+		settingRows(lb, List.of(Theme.HUD_SAME_FONT));
+		if (!Theme.HUD_SAME_FONT.on()) {
+			section(lb, "HUD font", "Widgets, waypoints and warnings. " + Theme.HUD_FONT.get().label() + " is on.");
+			List<Item> hudFonts = new ArrayList<>();
+			for (vanta.ui.UiFont f : vanta.ui.UiFont.values()) hudFonts.add(new vanta.gui.items.FontCard(f, Theme.HUD_FONT, this));
+			lb.grid(hudFonts, 112, vanta.gui.items.FontCard.height());
+		}
+
 		section(lb, "Styles", "Complete looks: surfaces, text, corners, card style and palette");
 		List<Item> styles = new ArrayList<>();
 		for (Theme.Style s : Theme.Style.values()) styles.add(new BasicItems.StyleItem(s, () -> Theme.applyStyle(s)));
@@ -1096,6 +1267,13 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		if (minecraft.level == null) {
 			g.fill(0, 0, width, height, Theme.background());
 		} else {
+			if (Theme.BLUR.on()) {
+				try {
+					renderBlurredBackground(g);
+				} catch (IllegalStateException alreadyBlurred) {
+					// something else already blurred this frame
+				}
+			}
 			float dim = Theme.BACKGROUND_DIM.value() / 100f;
 			if (dim > 0) g.fill(0, 0, width, height, Colors.withAlpha(Theme.background(), dim * open));
 		}
@@ -1163,14 +1341,31 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		int r = Theme.radius() + 1;
 		Ui.shadow(g, px, py, panelW, panelH, r);
 		Ui.roundRect(g, px, py, panelW, panelH, r, Theme.panel());
-		Ui.roundRect(g, sidebarX + offsetX, py, sidebarW, panelH, r, Theme.sidebar());
+		boolean glass = Theme.CARD_STYLE.get() == Theme.CardStyle.GLASS;
+		if (glass) {
+			// glass: soft light from the top and a bright rim
+			g.fillGradient(px + r, py + 1, px + panelW - r, py + Math.min(60, panelH / 3), Colors.withAlpha(0xFFFFFFFF, 0.05f), 0);
+		}
 		boolean right = Theme.SIDEBAR_SIDE.get() == Theme.Side.RIGHT;
-		Ui.rect(g, (right ? sidebarX : sidebarX + sidebarW - 1) + offsetX, py, 1, panelH, Theme.border());
-		Ui.border(g, px, py, panelW, panelH, r, Theme.border());
+		switch (shell) {
+			case SIDEBAR, RAIL -> {
+				Ui.roundRect(g, sidebarX + offsetX, py, sidebarW, panelH, r, Theme.sidebar());
+				Ui.rect(g, (right ? sidebarX : sidebarX + sidebarW - 1) + offsetX, py, 1, panelH, Theme.border());
+			}
+			case LIQUID -> {
+				Ui.rect(g, (right ? sidebarX : sidebarX + sidebarW - 1) + offsetX, py, 1, panelH, Colors.withAlpha(Theme.border(), 0.8f));
+				Ui.rect(g, px + 1, py + headerH, panelW - 2, 1, Colors.withAlpha(Theme.border(), 0.8f));
+			}
+			case TABS -> Ui.rect(g, px + 1, py + headerH - 4, panelW - 2, 1, Colors.withAlpha(Theme.border(), 0.8f));
+			case DOCK -> Ui.rect(g, px + 1, py + headerH - 2, panelW - 2, 1, Colors.withAlpha(Theme.border(), 0.6f));
+			default -> {
+			}
+		}
+		Ui.border(g, px, py, panelW, panelH, r, glass ? Colors.withAlpha(0xFFFFFFFF, 0.12f) : Theme.border());
 
 		g.pose().pushMatrix();
 		g.pose().translate(offsetX, 0);
-		renderSidebar(g, mx - offsetX, my, py, dt);
+		renderNav(g, mx - offsetX, my, py, dt);
 		renderHeader(g, mx - offsetX, my, py);
 		renderBody(g, mx - offsetX, my, py, dt);
 		g.pose().popMatrix();
@@ -1181,90 +1376,351 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 		if (zoom) g.pose().popMatrix();
 	}
 
-	private void renderSidebar(GuiGraphics g, int mx, int my, int py, float dt) {
-		int x = sidebarX;
-		boolean labels = Theme.SIDEBAR_LABELS.on();
+	private MenuPage activePage() {
+		if (moduleView == null) return page;
+		if (moduleView == ModuleRegistry.CROSSHAIR) return MenuPage.CROSSHAIR;
+		if (moduleView instanceof vanta.chat.ChatModule) return MenuPage.CHAT;
+		return MenuPage.MODULES;
+	}
+
+	private NavSlot slot(MenuPage p) {
+		for (NavSlot n : nav) if (n.page() == p) return n;
+		return null;
+	}
+
+	private void renderNav(GuiGraphics g, int mx, int my, int py, float dt) {
+		int dy = py - panelY; // open animation offset
+		boolean labels = Theme.SIDEBAR_LABELS.on() && shell != vanta.branding.UiFormat.Shell.RAIL;
 		boolean icons = Theme.SIDEBAR_ICONS.on() || !labels;
-		if (Theme.SHOW_LOGO.on() && labels) {
-			int size = vanta.branding.Logo.fit(sidebarW - 20, Math.round(20 * Theme.headingScale()), true);
-			vanta.branding.Logo.draw(g, x + 10, py + 6, size, true, openedAt);
+		// logo / brand
+		switch (shell) {
+			case SIDEBAR -> {
+				if (Theme.SHOW_LOGO.on() && labels) {
+					int size = vanta.branding.Logo.fit(sidebarW - 20, Math.round(20 * Theme.headingScale()), true);
+					vanta.branding.Logo.draw(g, sidebarX + 10, py + 6, size, true, openedAt);
+				}
+			}
+			case RAIL -> vanta.branding.Logo.draw(g, sidebarX + (sidebarW - 18) / 2, py + 9, 18, false, openedAt);
+			case LIQUID -> {
+				int size = Math.min(24, headerH - 10);
+				vanta.branding.Logo.draw(g, sidebarX + (sidebarW - size) / 2, py + (headerH - size) / 2, size, false, openedAt);
+			}
+			case TABS, DOCK -> {
+				int size = Math.round(14 * Theme.headingScale());
+				vanta.branding.Logo.draw(g, panelX + 10, py + 9, size, true, openedAt);
+			}
+			default -> {
+			}
 		}
-		int navY = py + navTop;
-		MenuPage active = moduleView != null ? (moduleView == ModuleRegistry.CROSSHAIR ? MenuPage.CROSSHAIR : MenuPage.MODULES) : page;
-		int itemH = navItemH;
-		int targetY = navY + active.ordinal() * (itemH + 2);
-		if (navIndicatorY < 0) navIndicatorY = targetY;
-		navIndicatorY = Anim.approach(navIndicatorY, targetY, dt, 18f);
-		int iy0 = Math.round(navIndicatorY);
+		// dock background
+		if (shell == vanta.branding.UiFormat.Shell.DOCK && !nav.isEmpty()) {
+			NavSlot first = nav.get(0), last = nav.get(nav.size() - 1);
+			int x0 = first.x() - 6, x1 = last.x() + last.w() + 6, y0 = first.y() - 3 + dy, h = first.h() + 6;
+			Ui.roundRect(g, x0, y0, x1 - x0, h, Math.min(h / 2, Theme.radius() + 6), Colors.withAlpha(Theme.sidebar(), 0.95f));
+			Ui.roundOutline(g, x0, y0, x1 - x0, h, Math.min(h / 2, Theme.radius() + 6), Colors.withAlpha(0xFFFFFFFF, 0.10f));
+		}
+
+		MenuPage active = activePage();
+		NavSlot cur = slot(active);
+		if (cur != null) {
+			if (indX < 0) {
+				indX = cur.x();
+				indY = cur.y();
+				indW = cur.w();
+			}
+			indX = Anim.approach(indX, cur.x(), dt, 18f);
+			indY = Anim.approach(indY, cur.y(), dt, 18f);
+			indW = Anim.approach(indW, cur.w(), dt, 18f);
+			if (verticalNav()) g.enableScissor(sidebarX, navClipY0 + dy, sidebarX + sidebarW, navClipY1 + dy);
+			int ix = Math.round(indX), iy = Math.round(indY) + dy - (verticalNav() ? Math.round(navScroll) : 0), iw = Math.round(indW), ih = cur.h();
+			drawIndicator(g, ix, iy, iw, ih);
+		} else if (verticalNav()) {
+			g.enableScissor(sidebarX, navClipY0 + dy, sidebarX + sidebarW, navClipY1 + dy);
+		}
+		boolean pill = Theme.INDICATOR.get() == Theme.Indicator.PILL && shell != vanta.branding.UiFormat.Shell.LIQUID;
+		String tooltip = null;
+		int tipX = 0, tipY = 0;
+		boolean inClip = !verticalNav() || (my >= navClipY0 + dy && my < navClipY1 + dy);
+		for (NavSlot n : nav) {
+			MenuPage p = n.page();
+			int nx = n.x(), ny = slotY(n) + dy;
+			if (verticalNav() && (ny + n.h() < navClipY0 + dy || ny > navClipY1 + dy)) continue;
+			boolean hov = inClip && Ui.inside(mx, my, nx, ny, n.w(), n.h());
+			if (hov && p != active) Ui.roundRect(g, nx, ny, n.w(), n.h(), navRadius(n), Theme.panelHover());
+			int color = p == active ? (pill ? Colors.contrastText(Theme.accent()) : Theme.text()) : hov ? Theme.text() : Theme.textDim();
+			int iconColor = p == active && !pill ? Theme.accent() : color;
+			if (n.iconOnly()) {
+				float sc = n.w() >= 18 && shell == vanta.branding.UiFormat.Shell.DOCK ? 1.3f : 1f;
+				g.pose().pushMatrix();
+				g.pose().translate(nx + n.w() / 2f - 4.5f * sc, ny + n.h() / 2f - 4.5f * sc);
+				g.pose().scale(sc);
+				Ui.icon(g, p.icon, 0, 0, iconColor);
+				g.pose().popMatrix();
+				if (shell == vanta.branding.UiFormat.Shell.DOCK && p == active) Ui.roundRect(g, nx + n.w() / 2 - 1, ny + n.h() + 1, 3, 2, 1, Theme.accent());
+				if (hov) {
+					tooltip = p.title;
+					tipX = nx + n.w() / 2;
+					tipY = shell == vanta.branding.UiFormat.Shell.DOCK ? ny - 14 : ny;
+				}
+			} else if (shell == vanta.branding.UiFormat.Shell.LIQUID) {
+				int tx = nx + 10;
+				if (icons) {
+					Ui.icon(g, p.icon, tx, ny + (n.h() - 9) / 2, iconColor);
+					tx += 15;
+				}
+				String label = Ui.ellipsize(p.title, n.w() - (tx - nx) - 6);
+				drawBold(g, label, tx, ny + (n.h() - 8) / 2, p == active ? Theme.text() : color);
+			} else {
+				int tx = nx + (shell == vanta.branding.UiFormat.Shell.TABS ? 7 : 7);
+				if (icons) {
+					Ui.icon(g, p.icon, tx, ny + (n.h() - 9) / 2, iconColor);
+					tx += 15;
+				}
+				Ui.text(g, Ui.ellipsize(p.title, n.w() - (tx - nx) - 4), tx, ny + (n.h() - 8) / 2, color);
+			}
+		}
+		if (verticalNav()) {
+			g.disableScissor();
+			if (navMaxScroll > 0) {
+				// fade hints that there's more above/below
+				int top = navClipY0 + dy, bot = navClipY1 + dy, sb = Theme.sidebar() | 0xFF000000;
+				int base = shell == vanta.branding.UiFormat.Shell.LIQUID ? Theme.panel() : Theme.sidebar();
+				if (navScroll > 1) g.fillGradient(sidebarX + 2, top, sidebarX + sidebarW - 2, top + 8, base, base & 0x00FFFFFF);
+				if (navScroll < navMaxScroll - 1) g.fillGradient(sidebarX + 2, bot - 8, sidebarX + sidebarW - 2, bot, base & 0x00FFFFFF, base);
+				int trackH = bot - top, thumb = Math.max(10, trackH * trackH / (trackH + navMaxScroll));
+				int ty = top + Math.round((trackH - thumb) * (navScroll / navMaxScroll));
+				int tx = Theme.SIDEBAR_SIDE.get() == Theme.Side.RIGHT ? sidebarX + 1 : sidebarX + sidebarW - 3;
+				Ui.rect(g, tx, ty, 1, thumb, Colors.withAlpha(Theme.accent(), 0.6f));
+			}
+		}
+		if (shell == vanta.branding.UiFormat.Shell.SIDEBAR && labels) {
+			String hint = VantaKeys.menuKeyName() + " to close";
+			Ui.text(g, Ui.ellipsize(hint, sidebarW - 16), sidebarX + 10, py + panelH - 14, Theme.textFaint());
+		}
+		if (shell == vanta.branding.UiFormat.Shell.LIQUID) {
+			String[] labelsB = {"Edit HUD", "Formats"};
+			String[][] iconsB = {Icons.MOVE, Icons.PALETTE};
+			for (int i = 0; i < chromeHits.size() && i < 2; i++) {
+				Hit h = chromeHits.get(i);
+				int hy = h.y() + dy;
+				boolean hov = Ui.inside(mx, my, h.x(), hy, h.w(), h.h());
+				int rr = Math.min(h.h() / 2, Theme.radius() + 1);
+				Ui.roundRect(g, h.x(), hy, h.w(), h.h(), rr, hov ? Theme.panelHover() : Colors.withAlpha(Theme.PANEL.argb(), 0.6f));
+				Ui.roundOutline(g, h.x(), hy, h.w(), h.h(), rr, Colors.withAlpha(Theme.TEXT.argb(), hov ? 0.22f : 0.12f));
+				Ui.icon(g, iconsB[i], h.x() + 8, hy + (h.h() - 9) / 2, hov ? Theme.accent() : Theme.textDim());
+				drawBold(g, Ui.ellipsize(labelsB[i], h.w() - 30), h.x() + 22, hy + (h.h() - 8) / 2, Theme.text());
+			}
+		}
+		if (tooltip != null) {
+			int tw = Ui.width(tooltip) + 8;
+			int tx = shell == vanta.branding.UiFormat.Shell.RAIL ? sidebarX + sidebarW + 2 : tipX - tw / 2;
+			int ty = shell == vanta.branding.UiFormat.Shell.RAIL ? tipY + 2 : tipY;
+			Ui.roundRect(g, tx, ty, tw, 12, 3, Colors.withAlpha(Theme.background(), 0.95f));
+			Ui.roundOutline(g, tx, ty, tw, 12, 3, Theme.border());
+			Ui.text(g, tooltip, tx + 4, ty + 2, Theme.text());
+		}
+	}
+
+	private int navRadius(NavSlot n) {
+		return shell == vanta.branding.UiFormat.Shell.LIQUID || shell == vanta.branding.UiFormat.Shell.DOCK
+				? Math.min(n.h() / 2, Theme.radius() + 2) : Theme.radius();
+	}
+
+	private void drawIndicator(GuiGraphics g, int x, int y, int w, int h) {
+		int rad = shell == vanta.branding.UiFormat.Shell.LIQUID || shell == vanta.branding.UiFormat.Shell.DOCK
+				? Math.min(h / 2, Theme.radius() + 2) : Theme.radius();
+		if (shell == vanta.branding.UiFormat.Shell.LIQUID) {
+			Ui.roundRect(g, x, y, w, h, rad, Colors.withAlpha(Colors.mix(Theme.PANEL.argb(), Theme.TEXT.argb(), 0.16f), 0.85f));
+			Ui.roundOutline(g, x, y, w, h, rad, Colors.withAlpha(Theme.TEXT.argb(), 0.28f));
+			return;
+		}
+		if (shell == vanta.branding.UiFormat.Shell.TABS) {
+			Ui.roundRect(g, x, y, w, h, rad, Colors.fade(Theme.accent(), 0.16f));
+			Ui.accentFill(g, x + 3, y + h - 2, w - 6, 2, 1, 0f);
+			return;
+		}
+		if (shell == vanta.branding.UiFormat.Shell.DOCK) {
+			Ui.roundRect(g, x - 2, y - 2, w + 4, h + 4, rad, Colors.fade(Theme.accent(), 0.22f));
+			return;
+		}
 		switch (Theme.INDICATOR.get()) {
 			case BAR -> {
-				Ui.roundRect(g, x + 6, iy0, sidebarW - 12, itemH, Theme.radius(), Colors.fade(Theme.accent(), 0.18f));
-				Ui.rect(g, x + 6, iy0 + 4, 2, itemH - 8, Theme.accent());
+				Ui.roundRect(g, x, y, w, h, Theme.radius(), Colors.fade(Theme.accent(), 0.18f));
+				Ui.rect(g, x, y + 4, 2, h - 8, Theme.accent());
 			}
-			case PILL -> Ui.accentFill(g, x + 6, iy0, sidebarW - 12, itemH, Math.min(itemH / 2, 6), 0f);
-			case UNDERLINE -> Ui.accentFill(g, x + 10, iy0 + itemH - 2, sidebarW - 20, 1, 0, 0f);
+			case PILL -> Ui.accentFill(g, x, y, w, h, Math.min(h / 2, 6), 0f);
+			case UNDERLINE -> Ui.accentFill(g, x + 4, y + h - 2, w - 8, 1, 0, 0f);
 			case GLOW -> {
-				Ui.roundRect(g, x + 4, iy0 - 1, sidebarW - 8, itemH + 2, Theme.radius() + 1, Colors.fade(Theme.accent(), 0.10f));
-				Ui.roundRect(g, x + 6, iy0, sidebarW - 12, itemH, Theme.radius(), Colors.fade(Theme.accent(), 0.16f));
+				Ui.roundRect(g, x - 2, y - 1, w + 4, h + 2, Theme.radius() + 1, Colors.fade(Theme.accent(), 0.10f));
+				Ui.roundRect(g, x, y, w, h, Theme.radius(), Colors.fade(Theme.accent(), 0.16f));
 			}
 			case NONE -> {
 			}
 		}
-		boolean pill = Theme.INDICATOR.get() == Theme.Indicator.PILL;
-		for (MenuPage p : MenuPage.values()) {
-			int iy = navY + p.ordinal() * (itemH + 2);
-			boolean hov = Ui.inside(mx, my, x + 6, iy, sidebarW - 12, itemH);
-			if (hov && p != active) Ui.roundRect(g, x + 6, iy, sidebarW - 12, itemH, Theme.radius(), Theme.panelHover());
-			int color = p == active ? (pill ? Colors.contrastText(Theme.accent()) : Theme.text()) : hov ? Theme.text() : Theme.textDim();
-			int iconColor = p == active && !pill ? Theme.accent() : color;
-			int ty = iy + (itemH - 8) / 2;
-			if (!labels) {
-				Ui.icon(g, p.icon, x + (sidebarW - 9) / 2, iy + (itemH - 9) / 2, iconColor);
-			} else {
-				int tx = x + 13;
-				if (icons) {
-					Ui.icon(g, p.icon, x + 13, iy + (itemH - 9) / 2, iconColor);
-					tx = x + 28;
-				}
-				Ui.text(g, Ui.ellipsize(p.title, sidebarW - (tx - x) - 8), tx, ty, color);
-			}
-		}
-		if (labels) {
-			String hint = VantaKeys.menuKeyName() + " to close";
-			Ui.text(g, Ui.ellipsize(hint, sidebarW - 16), x + 10, py + panelH - 14, Theme.textFaint());
-		}
 	}
 
-	private int backButtonX() { return contentX + 8; }
+	private static void drawBold(GuiGraphics g, String s, int x, int y, int color) {
+		Ui.bold(g, s, x, y, color);
+	}
+
+	private record HeaderChip(int x, int y, int w, int h, Category category) {
+	}
+
+	private final List<HeaderChip> headerChips = new ArrayList<>();
+
+	/** Top-left corner of the back button (shown on module pages), for the current layout. */
+	private int backButtonX() {
+		return switch (shell) {
+			case LIQUID -> searchX + searchW + 10;
+			case TABS, DOCK -> panelX + 10 + vanta.branding.Logo.width(Math.round(14 * Theme.headingScale()), true) + 12;
+			default -> contentX + 8;
+		};
+	}
+
+	private int backButtonY() {
+		return switch (shell) {
+			case LIQUID -> panelY + (headerH - 16) / 2;
+			case TABS, DOCK -> panelY + 8;
+			default -> panelY + 10;
+		};
+	}
+
+	private static int chipWidth(Category c, boolean count) {
+		int w = Ui.boldWidth(chipLabel(c)) + 14;
+		if (count) w += 4 + Math.round(Ui.width(String.valueOf(ModuleRegistry.sorted(c).size())) * 0.75f);
+		return w;
+	}
+
+	private static int chipsWidth(boolean count) {
+		int total = chipWidth(null, count) + 4;
+		for (Category c : ModuleRegistry.usedCategories()) total += chipWidth(c, count) + 4;
+		return total;
+	}
+
+	/** Short category names for the top-bar chips. */
+	private static String chipLabel(Category c) {
+		if (c == null) return "All";
+		return switch (c) {
+			case PERFORMANCE -> "FPS";
+			case INTERFACE -> "UI";
+			case QOL -> "QoL";
+			case EXPERIMENTAL -> "Lab";
+			default -> c.label;
+		};
+	}
 
 	private void renderHeader(GuiGraphics g, int mx, int my, int py) {
-		int titleX = contentX + 10;
+		int dy = py - panelY;
+		headerChips.clear();
 		String title;
 		String sub;
+		boolean back = moduleView != null && query.isEmpty();
 		if (!query.isEmpty()) {
 			title = "Search";
 			sub = "Modules, settings and pages";
 		} else if (moduleView != null) {
-			boolean backHover = Ui.inside(mx, my, backButtonX(), py + 10, 16, 16);
-			Ui.roundRect(g, backButtonX(), py + 10, 16, 16, Theme.radius(), backHover ? Theme.panelHover() : Theme.panelRaised());
-			Ui.icon(g, Icons.BACK, backButtonX() + 4, py + 14, backHover ? Theme.accent() : Theme.textDim());
-			titleX += 20;
 			title = moduleView.name();
 			sub = moduleView.category().label + (moduleView.isExperimental() ? " - Experimental" : "");
 		} else {
 			title = page.title;
 			sub = page.subtitle;
 		}
-		int maxW = searchX - titleX - 8;
-		float hs = 1.25f * Theme.headingScale();
-		Ui.textScaled(g, Ui.ellipsize(title, (int) (maxW / hs)), titleX, py + 9, hs, Theme.text(), false);
-		if (Theme.SHOW_SUBTITLES.on()) Ui.text(g, Ui.ellipsize(sub, maxW), titleX, py + 23, Theme.textFaint());
+		int bx = backButtonX(), by = backButtonY() + dy;
+		if (back) {
+			boolean backHover = Ui.inside(mx, my, bx, by, 16, 16);
+			Ui.roundRect(g, bx, by, 16, 16, Math.min(8, Theme.radius() + 1), backHover ? Theme.panelHover() : Theme.panelRaised());
+			Ui.icon(g, Icons.BACK, bx + 4, by + 4, backHover ? Theme.accent() : Theme.textDim());
+		}
+		switch (shell) {
+			case LIQUID -> {
+				int right = closeX - 12;
+				int left = searchX + searchW + 10;
+				// divider before the close button
+				Ui.rect(g, closeX - 8, py + 1, 1, headerH - 1, Colors.withAlpha(Theme.border(), 0.8f));
+				if (back || !query.isEmpty()) {
+					int tx = back ? bx + 22 : left;
+					drawBold(g, Ui.ellipsize(title, right - tx), tx, py + (headerH - 8) / 2, Theme.text());
+				} else if (page == MenuPage.MODULES && headerChipsFit) {
+					List<Category> cats = new ArrayList<>();
+					cats.add(null);
+					cats.addAll(ModuleRegistry.usedCategories());
+					int[] widths = new int[cats.size()];
+					int total = 0;
+					for (int i = 0; i < cats.size(); i++) {
+						Category c = cats.get(i);
+						widths[i] = chipWidth(c, chipCounts);
+						total += widths[i] + 4;
+					}
+					// drop chips from the end until they fit
+					int shown = cats.size();
+					while (shown > 1 && right - total < left) {
+						shown--;
+						total -= widths[shown] + 4;
+					}
+					int x = right - total + 4;
+					int cy = py + (headerH - 18) / 2;
+					for (int i = 0; i < shown; i++) {
+						Category c = cats.get(i);
+						boolean sel = categoryFilter == c;
+						boolean hov = Ui.inside(mx, my, x, cy, widths[i], 18);
+						int rr = 9;
+						Ui.roundRect(g, x, cy, widths[i], 18, rr, sel ? Colors.withAlpha(Colors.mix(Theme.PANEL.argb(), Theme.TEXT.argb(), 0.18f), 0.9f)
+								: hov ? Theme.panelHover() : Colors.withAlpha(Theme.PANEL.argb(), 0.35f));
+						Ui.roundOutline(g, x, cy, widths[i], 18, rr, Colors.withAlpha(Theme.TEXT.argb(), sel ? 0.6f : 0.22f));
+						String label = chipLabel(c);
+						String n = String.valueOf(ModuleRegistry.sorted(c).size());
+						drawBold(g, label, x + 7, cy + 5, Theme.text());
+						if (chipCounts) {
+							int lw = Ui.boldWidth(label);
+							g.pose().pushMatrix();
+							g.pose().translate(x + 7 + lw + 4, cy + 7);
+							g.pose().scale(0.75f);
+							Ui.text(g, n, 0, 0, Theme.textDim());
+							g.pose().popMatrix();
+						}
+						headerChips.add(new HeaderChip(x, cy - dy, widths[i], 18, c));
+						x += widths[i] + 4;
+					}
+				} else {
+					String t = Theme.heading(title);
+					int tw = Ui.boldWidth(t);
+					drawBold(g, t, right - tw, py + (headerH - 8) / 2, Theme.text());
+				}
+			}
+			case TABS, DOCK -> {
+				int tx = back ? bx + 22 : bx;
+				boolean showTitle = back || !query.isEmpty() || shell == vanta.branding.UiFormat.Shell.DOCK;
+				if (showTitle) {
+					int maxW = searchX - tx - 8;
+					Ui.text(g, Ui.ellipsize(title, maxW), tx, py + 12, Theme.text());
+				}
+			}
+			default -> {
+				int titleX = contentX + 10 + (back ? 20 : 0);
+				int maxW = searchX - titleX - 8;
+				float hs = 1.25f * Theme.headingScale();
+				Ui.textScaled(g, Ui.ellipsize(title, (int) (maxW / hs)), titleX, py + 9, hs, Theme.text(), false);
+				if (Theme.SHOW_SUBTITLES.on()) Ui.text(g, Ui.ellipsize(sub, maxW), titleX, py + 23, Theme.textFaint());
+			}
+		}
 
-		int sy = searchY + offsetY;
+		// search box
+		int sy = searchY + dy;
 		boolean focused = search != null && search.isFocused();
-		Ui.roundRect(g, searchX, sy, searchW, 16, Theme.radius(), Colors.withAlpha(Theme.background(), 0.6f));
-		Ui.roundOutline(g, searchX, sy, searchW, 16, Theme.radius(), focused ? Theme.accent() : Theme.border());
-		Ui.icon(g, Icons.SEARCH, searchX + 4, sy + 4, focused ? Theme.accent() : Theme.textFaint());
+		int sr = shell == vanta.branding.UiFormat.Shell.LIQUID ? Math.min(searchH / 2, Theme.radius() + 2) : Theme.radius();
+		Ui.roundRect(g, searchX, sy, searchW, searchH, sr, Colors.withAlpha(Theme.background(), shell == vanta.branding.UiFormat.Shell.LIQUID ? 0.35f : 0.6f));
+		Ui.roundOutline(g, searchX, sy, searchW, searchH, sr, focused ? Theme.accent() : shell == vanta.branding.UiFormat.Shell.LIQUID
+				? Colors.withAlpha(Theme.TEXT.argb(), 0.22f) : Theme.border());
+		if (shell == vanta.branding.UiFormat.Shell.LIQUID) Ui.icon(g, Icons.SEARCH, searchX + searchW - 14, sy + (searchH - 9) / 2, focused ? Theme.accent() : Theme.textDim());
+		else Ui.icon(g, Icons.SEARCH, searchX + 4, sy + (searchH - 9) / 2, focused ? Theme.accent() : Theme.textFaint());
+
+		// close button
+		if (closeX >= 0) {
+			int cy = closeY + dy;
+			boolean hov = Ui.inside(mx, my, closeX, cy, 18, 18);
+			if (hov) Ui.roundRect(g, closeX, cy, 18, 18, Math.min(9, Theme.radius() + 2), Theme.panelHover());
+			Ui.icon(g, Icons.CLOSE, closeX + 5, cy + 5, hov ? Theme.accent() : Theme.text());
+		}
 	}
 
 	private void renderBody(GuiGraphics g, int mx, int my, int py, float dt) {
@@ -1294,7 +1750,9 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 			Ui.roundRect(g, trackX, thumbY, 2, thumbH, 1, Theme.accent());
 		}
 
-		if (Theme.SHOW_FOOTER.on()) {
+		boolean footerShell = shell == vanta.branding.UiFormat.Shell.SIDEBAR || shell == vanta.branding.UiFormat.Shell.RAIL
+				|| shell == vanta.branding.UiFormat.Shell.TABS;
+		if (Theme.SHOW_FOOTER.on() && footerShell) {
 			int fy = py + panelH - 14;
 			String footer = hint != null ? hint
 					: !query.isEmpty() ? "Esc clears the search"
@@ -1323,21 +1781,42 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	protected boolean onClick(double mxRaw, double my, int button) {
 		double mx = mxRaw - offsetX;
 		int py = panelY + offsetY;
-		int navY = py + navTop;
-		for (MenuPage p : MenuPage.values()) {
-			int iy = navY + p.ordinal() * (navItemH + 2);
-			if (Ui.inside(mx, my, sidebarX + 6, iy, sidebarW - 12, navItemH)) {
+		int dy = offsetY;
+		boolean inNavClip = !verticalNav() || (my >= navClipY0 + dy && my < navClipY1 + dy);
+		for (NavSlot n : nav) {
+			if (inNavClip && Ui.inside(mx, my, n.x(), slotY(n) + dy, n.w(), n.h())) {
 				MenuSettings.click();
-				openPage(p);
+				openPage(n.page());
 				return true;
 			}
 		}
-		if (moduleView != null && query.isEmpty() && Ui.inside(mx, my, backButtonX(), py + 10, 16, 16)) {
+		for (Hit h : chromeHits) {
+			if (Ui.inside(mx, my, h.x(), h.y() + dy, h.w(), h.h())) {
+				MenuSettings.click();
+				h.action().run();
+				return true;
+			}
+		}
+		for (HeaderChip c : headerChips) {
+			if (Ui.inside(mx, my, c.x(), c.y() + dy, c.w(), c.h())) {
+				MenuSettings.click();
+				categoryFilter = c.category();
+				scroll = scrollTarget = 0;
+				rebuild();
+				return true;
+			}
+		}
+		if (closeX >= 0 && Ui.inside(mx, my, closeX, closeY + dy, 18, 18)) {
+			MenuSettings.click();
+			onClose();
+			return true;
+		}
+		if (moduleView != null && query.isEmpty() && Ui.inside(mx, my, backButtonX(), backButtonY() + dy, 16, 16)) {
 			MenuSettings.click();
 			goBack();
 			return true;
 		}
-		if (Ui.inside(mx, my, searchX, searchY + offsetY, searchW, 16)) {
+		if (Ui.inside(mx, my, searchX, searchY + dy, searchW, searchH)) {
 			focusSearch();
 			return true;
 		}
@@ -1374,6 +1853,10 @@ public final class VantaMenuScreen extends VantaScreen implements MenuHost {
 	@Override
 	protected boolean onScroll(double mxRaw, double my, double amount) {
 		double mx = mxRaw - offsetX;
+		if (navMaxScroll > 0 && verticalNav() && Ui.inside(mx, my, sidebarX, navClipY0 + offsetY, sidebarW, navClipY1 - navClipY0)) {
+			navScroll = Math.max(0, Math.min(navMaxScroll, navScroll - (float) (amount * 16)));
+			return true;
+		}
 		Item it = itemAt(mx, my);
 		if (it != null) {
 			int ax = bodyX + bodyOffsetX + it.x;

@@ -79,26 +79,23 @@ public final class SetupWizardScreen extends VantaScreen {
 				buttons.add(new Btn(vw / 2 - 40, vh / 2 + 60, 80, 16, "Skip setup", null, this::finish, () -> false, false));
 			}
 			case 1 -> {
-				buttons.add(new Btn(cx, top, cw, 18, "Client name: " + Theme.clientName(), "Click to rename. Your logo uses this name.", () ->
+				int nameW = cw * 3 / 5;
+				buttons.add(new Btn(cx + nameW + 4, top, cw - nameW - 4, 18, "Font: " + Theme.FONT.get().label(),
+						"Click to try the next font. " + Theme.FONT.get().description + ". More on the Theme page.", Theme.FONT::next, () -> false, false));
+				buttons.add(new Btn(cx, top, nameW, 18, "Client name: " + Theme.clientName(), "Click to rename. Your logo uses this name.", () ->
 						minecraft.setScreen(new TextInputScreen(this, "Client name", "The name shown in your logo, menus and chat watermark.",
 								Theme.clientName(), 16, v -> {
 									Theme.CLIENT_NAME.set(v);
 									return null;
 								})), () -> false, false));
-				int y = top + 30;
-				Theme.Style[] all = Theme.Style.values();
-				int w = (cw - 4 * (all.length - 1)) / all.length;
+				int y = top + 26;
+				vanta.branding.UiFormat[] all = vanta.branding.UiFormat.values();
+				int cols = 5, gap = 4;
+				int tw = (cw - gap * (cols - 1)) / cols, th = Math.max(26, Math.min(40, (vh - 34 - 8 - y) / 3 - gap));
 				for (int i = 0; i < all.length; i++) {
-					Theme.Style s = all[i];
-					buttons.add(new Btn(cx + i * (w + 4), y, w, 18, s.label, null, () -> Theme.applyStyle(s), () -> false, false));
-				}
-				y += 28;
-				Theme.Palette[] ps = Theme.Palette.values();
-				int pw = (cw - 4 * (ps.length - 1)) / ps.length;
-				for (int i = 0; i < ps.length; i++) {
-					Theme.Palette p = ps[i];
-					buttons.add(new Btn(cx + i * (pw + 4), y, pw, 18, "", p.label, () -> Theme.applyPalette(p),
-							() -> (Theme.ACCENT.argb() | 0xFF000000) == (p.accent | 0xFF000000), false));
+					vanta.branding.UiFormat f = all[i];
+					buttons.add(new Btn(cx + (i % cols) * (tw + gap), y + (i / cols) * (th + gap), tw, th, "fmt:" + f.name(), f.label(), f::apply,
+							() -> Theme.FORMAT.get() == f, false));
 				}
 			}
 			case 2 -> {
@@ -184,7 +181,7 @@ public final class SetupWizardScreen extends VantaScreen {
 				Ui.textCentered(g, "Welcome! Let's set things up in four quick steps.", vw / 2, vh / 2 - 6, Theme.text());
 				Ui.textCentered(g, "You can change everything later in the menu (Right Shift).", vw / 2, vh / 2 + 8, Theme.textFaint());
 			}
-			case 1 -> heading(g, cx, "Pick your look", "A style sets the surfaces; a palette sets your accent colors.");
+			case 1 -> heading(g, cx, "Pick your look", "A format sets the layout and colors of the menu. Change it any time on the Theme page.");
 			case 2 -> heading(g, cx, "Performance", "Pick a preset for your PC. You can undo it from the Performance page.");
 			case 3 -> heading(g, cx, "What do you play?", "Pick any. The matching HUD widgets are turned on for you.");
 			case 4 -> {
@@ -201,6 +198,15 @@ public final class SetupWizardScreen extends VantaScreen {
 		for (Btn b : buttons) {
 			boolean hov = Ui.inside(mx, my, b.x(), b.y(), b.w(), b.h());
 			boolean sel = b.selected().getAsBoolean();
+			if (b.label().startsWith("fmt:")) {
+				vanta.branding.UiFormat f = vanta.branding.UiFormat.valueOf(b.label().substring(4));
+				Ui.roundRect(g, b.x() - 1, b.y() - 1, b.w() + 2, b.h() + 2, 3, sel ? Theme.accent() : hov ? Theme.textDim() : Theme.border());
+				vanta.gui.items.FormatCard.drawPreview(g, f, b.x(), b.y(), b.w(), b.h() - 10);
+				Ui.rect(g, b.x(), b.y() + b.h() - 10, b.w(), 10, Colors.withAlpha(Theme.background(), 0.9f));
+				Ui.textCentered(g, Ui.ellipsize(f.label(), b.w() - 2), b.x() + b.w() / 2, b.y() + b.h() - 9, sel ? Theme.accent() : Theme.text());
+				if (hov) Ui.textCentered(g, f.description, vw / 2, vh - 48, Theme.textFaint());
+				continue;
+			}
 			if (b.label().isEmpty()) {
 				// palette swatch
 				Theme.Palette p = paletteFor(b.sub());

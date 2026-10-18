@@ -1,0 +1,18 @@
+{
+	"providers": [
+		{
+			"type": "ttf",
+			"file": "vanta:ttf/nunito.ttf",
+			"size": 9.9,
+			"oversample": 4.0,
+			"shift": [
+				0.0,
+				0.0
+			]
+		},
+		{
+			"type": "reference",
+			"id": "minecraft:default"
+		}
+	]
+}

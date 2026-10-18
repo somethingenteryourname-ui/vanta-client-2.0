@@ -14,6 +14,7 @@ import vanta.crosshair.CrosshairRenderer;
 import vanta.metrics.InputStats;
 import vanta.modules.ModuleRegistry;
 import vanta.modules.impl.HudTweaksModule;
+import vanta.ui.Ui;
 
 /**
  * Draws enabled HUD widgets through Fabric's HUD element API (below chat, above the
@@ -31,36 +32,36 @@ public final class HudManager {
 	}
 
 	public static void register() {
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, WAYPOINTS_ID, (g, t) -> {
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, WAYPOINTS_ID, hudFont((g, t) -> {
 			try {
 				vanta.waypoints.WaypointsModule.render(g, t);
 			} catch (RuntimeException e) {
 				vanta.client.VantaClient.LOG.error("[VANTA] Waypoint markers failed and were turned off", e);
 				if (vanta.waypoints.WaypointsModule.get() != null) vanta.waypoints.WaypointsModule.get().setEnabled(false);
 			}
-		});
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, DAMAGE_ID, (g, t) -> {
+		}));
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, DAMAGE_ID, hudFont((g, t) -> {
 			try {
 				vanta.modules.impl.DamageIndicatorsModule.render(g, t);
 			} catch (RuntimeException e) {
 				vanta.client.VantaClient.LOG.error("[VANTA] Damage indicators failed", e);
 			}
-		});
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, TOTEM_ID, (g, t) -> {
+		}));
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, TOTEM_ID, hudFont((g, t) -> {
 			try {
 				vanta.modules.impl.TotemModule.renderFlat(g, t);
 			} catch (RuntimeException e) {
 				vanta.client.VantaClient.LOG.error("[VANTA] Flat totem animation failed", e);
 			}
-		});
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, DURABILITY_ID, (g, t) -> {
+		}));
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, DURABILITY_ID, hudFont((g, t) -> {
 			try {
 				vanta.hud.widgets.DurabilityWarningModule.render(g, t);
 			} catch (RuntimeException e) {
 				vanta.client.VantaClient.LOG.error("[VANTA] Durability warning failed", e);
 			}
-		});
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, HUD_ID, HudManager::render);
+		}));
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, HUD_ID, hudFont(HudManager::render));
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, HudManager::crosshair);
 		HudElementRegistry.replaceElement(VanillaHudElements.BOSS_BAR, original -> scaled(original, Anchor.TOP_CENTER, HudTweaksModule::bossBarScale));
 		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, original -> scaled((g, t) -> {
@@ -70,6 +71,18 @@ public final class HudManager {
 		HudElementRegistry.replaceElement(VanillaHudElements.STATUS_EFFECTS, original -> (g, t) -> {
 			if (!HudTweaksModule.hideEffects()) original.render(g, t);
 		});
+	}
+
+	/** Draws a HUD element with the HUD font. */
+	private static HudElement hudFont(HudElement inner) {
+		return (g, t) -> {
+			boolean prev = Ui.hud(true);
+			try {
+				inner.render(g, t);
+			} finally {
+				Ui.hud(prev);
+			}
+		};
 	}
 
 	private enum Anchor { TOP_CENTER, RIGHT_MIDDLE, CENTER }

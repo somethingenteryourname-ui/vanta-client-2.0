@@ -85,6 +85,15 @@ public abstract class HudModule extends Module {
 	}
 
 	public final void render(GuiGraphics g, int screenW, int screenH, boolean editor) {
+		boolean prevFont = Ui.hud(true);
+		try {
+			renderInHudFont(g, screenW, screenH, editor);
+		} finally {
+			Ui.hud(prevFont);
+		}
+	}
+
+	private void renderInHudFont(GuiGraphics g, int screenW, int screenH, boolean editor) {
 		update();
 		layout(screenW, screenH);
 		if (!editor && !hasContent()) return;
@@ -117,6 +126,6 @@ public abstract class HudModule extends Module {
 	protected final int pad() { return HudStyle.PADDING.value(); }
 
 	protected final void drawText(GuiGraphics g, String s, int x, int y, int color) {
-		g.drawString(Ui.font(), s, x, y, color, textShadow.on());
+		Ui.draw(g, s, x, y, color, textShadow.on());
 	}
 }

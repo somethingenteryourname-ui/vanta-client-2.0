@@ -365,7 +365,7 @@ public final class InfoPanelModule extends Module {
 				int h = 18 + lines * ROW_H + PAD - 2;
 				drawFrame(g, x, y, colW, h, "Mods", modText.size() > lines ? "+" + (modText.size() - lines) + " more" : null);
 				for (int i = 0; i < lines; i++) {
-					g.drawString(Ui.font(), Ui.ellipsize(modText.get(i), colW - PAD * 2), x + PAD, y + 18 + i * ROW_H, Theme.textDim(), false);
+					Ui.draw(g, Ui.ellipsize(modText.get(i), colW - PAD * 2), x + PAD, y + 18 + i * ROW_H, Theme.textDim(), false);
 				}
 			}
 		}
@@ -382,7 +382,7 @@ public final class InfoPanelModule extends Module {
 		Ui.roundRect(g, x, y, w, h, Theme.radius(), Colors.withAlpha(Theme.PANEL.argb(), alpha));
 		Ui.roundOutline(g, x, y, w, h, Theme.radius(), Colors.fade(Theme.border(), Math.max(0.4f, alpha)));
 		Ui.rect(g, x + PAD, y + 7, 2, 7, Theme.accent());
-		g.drawString(Ui.font(), Theme.heading(title), x + PAD + 6, y + 6, Theme.text(), false);
+		Ui.draw(g, Theme.heading(title), x + PAD + 6, y + 6, Theme.text(), false);
 		if (tag != null) Ui.textRight(g, Ui.ellipsize(tag, w / 2), x + w - PAD, y + 6, Theme.accent());
 	}
 
@@ -392,12 +392,12 @@ public final class InfoPanelModule extends Module {
 		if (c.title().equals("Performance")) {
 			Ui.textScaled(g, fpsText, x + PAD, cy, 2f, fpsColor, false);
 			int fw = Math.round(Ui.width(fpsText) * 2f);
-			g.drawString(Ui.font(), "FPS", x + PAD + fw + 4, cy + 1, Theme.textDim(), false);
-			g.drawString(Ui.font(), Ui.ellipsize(fpsSub, w - PAD * 2 - fw - 30), x + PAD + fw + 4, cy + 10, Theme.textFaint(), false);
+			Ui.draw(g, "FPS", x + PAD + fw + 4, cy + 1, Theme.textDim(), false);
+			Ui.draw(g, Ui.ellipsize(fpsSub, w - PAD * 2 - fw - 30), x + PAD + fw + 4, cy + 10, Theme.textFaint(), false);
 			cy += 22;
 			drawGraph(g, x + PAD, cy, w - PAD * 2, 18);
 			cy += 22;
-			g.drawString(Ui.font(), "Memory", x + PAD, cy, Theme.textDim(), false);
+			Ui.draw(g, "Memory", x + PAD, cy, Theme.textDim(), false);
 			Ui.textRight(g, memText, x + w - PAD, cy, Theme.text());
 			cy += 10;
 			int barColor = memFraction > 0.85f ? 0xFFF87171 : memFraction > 0.65f ? 0xFFFACC15 : Theme.accent();
@@ -407,9 +407,9 @@ public final class InfoPanelModule extends Module {
 		int labelW = 0;
 		for (Row r : c.rows()) labelW = Math.max(labelW, Ui.width(r.label()));
 		for (Row r : c.rows()) {
-			g.drawString(Ui.font(), r.label(), x + PAD, cy, Theme.textDim(), false);
+			Ui.draw(g, r.label(), x + PAD, cy, Theme.textDim(), false);
 			int vx = x + PAD + labelW + 8;
-			g.drawString(Ui.font(), Ui.ellipsize(r.value(), x + w - PAD - vx), vx, cy, r.color() != 0 ? r.color() : Theme.text(), false);
+			Ui.draw(g, Ui.ellipsize(r.value(), x + w - PAD - vx), vx, cy, r.color() != 0 ? r.color() : Theme.text(), false);
 			cy += ROW_H;
 		}
 	}
@@ -439,7 +439,7 @@ public final class InfoPanelModule extends Module {
 		int cx = x + PAD + r, cy = y + 18 + r + 2;
 		if (slices.isEmpty()) {
 			donut(g, cx, cy, r, r - 9, List.of(new Slice("", 1, Colors.withAlpha(Theme.textFaint(), 0.4f))));
-			g.drawString(Ui.font(), "Measuring...", x + PAD + r * 2 + 10, cy - 4, Theme.textDim(), false);
+			Ui.draw(g, "Measuring...", x + PAD + r * 2 + 10, cy - 4, Theme.textDim(), false);
 			return;
 		}
 		donut(g, cx, cy, r, r - 9, slices);
@@ -449,7 +449,7 @@ public final class InfoPanelModule extends Module {
 			Ui.rect(g, lx, ly + 1, 6, 6, s.color());
 			String pct = Math.round(s.fraction() * 100) + "%";
 			Ui.textRight(g, pct, x + w - PAD, ly, Theme.text());
-			g.drawString(Ui.font(), Ui.ellipsize(s.name(), x + w - PAD - Ui.width(pct) - 6 - (lx + 10)), lx + 10, ly, Theme.textDim(), false);
+			Ui.draw(g, Ui.ellipsize(s.name(), x + w - PAD - Ui.width(pct) - 6 - (lx + 10)), lx + 10, ly, Theme.textDim(), false);
 			ly += 11;
 		}
 	}

@@ -86,7 +86,7 @@ public final class AutoReconnectModule extends Module {
 					+ "s (try " + (tries + 1) + "/" + attempts.value() + ")";
 			else if (auto.on() && tries >= attempts.value()) text = "Stopped after " + tries + " tries.";
 			else return;
-			g.drawCenteredString(Ui.font(), text, w / 2, h - 44, 0xFFBFBFBF);
+			Ui.draw(g, text, w / 2 - Ui.width(text) / 2, h - 44, 0xFFBFBFBF, true);
 		});
 	}
 

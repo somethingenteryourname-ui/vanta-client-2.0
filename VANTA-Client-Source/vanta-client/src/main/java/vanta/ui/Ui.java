@@ -6,6 +6,7 @@ import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.util.FormattedCharSequence;
 
 import vanta.branding.Theme;
 
@@ -23,8 +24,20 @@ public final class Ui {
 			{3, 1, 1},
 			{4, 2, 1, 1},
 			{5, 3, 2, 1, 1},
-			{6, 4, 3, 2, 1, 1}
+			{6, 4, 3, 2, 1, 1},
+			corner(7), corner(8), corner(9), corner(10), corner(11), corner(12), corner(13), corner(14)
 	};
+
+	/** Corner insets for bigger radii, from a circle. */
+	private static int[] corner(int r) {
+		int[] out = new int[r];
+		for (int i = 0; i < r; i++) {
+			double dy = r - i - 0.5;
+			out[i] = (int) Math.round(r - Math.sqrt(Math.max(0, r * r - dy * dy)));
+		}
+		out[0] = Math.max(out[0], Math.min(r, out.length > 1 ? out[1] + 1 : r));
+		return out;
+	}
 
 	private static final Map<String[], int[][]> ICON_RUNS = new IdentityHashMap<>();
 
@@ -166,29 +179,78 @@ public final class Ui {
 
 	// ---------- Text ----------
 
+	private static boolean hud;
+
+	/** Switches text to the HUD font (true) or the menu font (false). Returns the previous state. */
+	public static boolean hud(boolean on) {
+		boolean prev = hud;
+		hud = on;
+		return prev;
+	}
+
+	/** The font VANTA text is drawn in right now. */
+	public static UiFont currentFont() {
+		return hud ? Theme.hudFont() : Theme.FONT.get();
+	}
+
+	public static FormattedCharSequence seq(String s) {
+		return FormattedCharSequence.forward(s, currentFont().style());
+	}
+
 	private static boolean shadowText() { return Theme.TEXT_SHADOW.on(); }
 
+	/** Draws text in the current VANTA font. All VANTA text goes through here. */
+	public static void draw(GuiGraphics g, String s, int x, int y, int color, boolean shadow) {
+		if (s == null || s.isEmpty()) return;
+		UiFont f = currentFont();
+		if (f.isDefault()) g.drawString(font(), s, x, y, color, shadow);
+		else g.drawString(font(), FormattedCharSequence.forward(s, f.style()), x, y, color, shadow);
+	}
+
+	/** Bold text in the current VANTA font. */
+	public static void bold(GuiGraphics g, String s, int x, int y, int color, boolean shadow) {
+		if (s == null || s.isEmpty()) return;
+		g.drawString(font(), FormattedCharSequence.forward(s, currentFont().bold()), x, y, color, shadow);
+	}
+
+	public static void bold(GuiGraphics g, String s, int x, int y, int color) {
+		bold(g, s, x, y, color, shadowText());
+	}
+
+	public static int boldWidth(String s) {
+		return s == null ? 0 : font().width(FormattedCharSequence.forward(s, currentFont().bold()));
+	}
+
+	public static String ellipsizeBold(String s, int maxWidth) {
+		if (maxWidth <= 0) return "";
+		if (boldWidth(s) <= maxWidth) return s;
+		int end = s.length();
+		int dots = boldWidth("...");
+		while (end > 0 && boldWidth(s.substring(0, end)) + dots > maxWidth) end--;
+		return s.substring(0, end).stripTrailing() + "...";
+	}
+
 	public static void text(GuiGraphics g, String s, int x, int y, int color) {
-		g.drawString(font(), s, x, y, color, shadowText());
+		draw(g, s, x, y, color, shadowText());
 	}
 
 	public static void textShadow(GuiGraphics g, String s, int x, int y, int color) {
-		g.drawString(font(), s, x, y, color, true);
+		draw(g, s, x, y, color, true);
 	}
 
 	public static void textCentered(GuiGraphics g, String s, int cx, int y, int color) {
-		g.drawString(font(), s, cx - font().width(s) / 2, y, color, shadowText());
+		draw(g, s, cx - width(s) / 2, y, color, shadowText());
 	}
 
 	public static void textRight(GuiGraphics g, String s, int right, int y, int color) {
-		g.drawString(font(), s, right - font().width(s), y, color, shadowText());
+		draw(g, s, right - width(s), y, color, shadowText());
 	}
 
 	public static void textScaled(GuiGraphics g, String s, int x, int y, float scale, int color, boolean shadow) {
 		g.pose().pushMatrix();
 		g.pose().translate(x, y);
 		g.pose().scale(scale);
-		g.drawString(font(), s, 0, 0, color, shadow || shadowText());
+		draw(g, s, 0, 0, color, shadow || shadowText());
 		g.pose().popMatrix();
 	}
 
@@ -197,22 +259,37 @@ public final class Ui {
 		int cx = x;
 		for (int i = 0; i < s.length(); i++) {
 			String ch = String.valueOf(s.charAt(i));
-			g.drawString(font(), ch, cx, y, Theme.chroma(i * 0.035f), shadow);
-			cx += font().width(ch);
+			draw(g, ch, cx, y, Theme.chroma(i * 0.035f), shadow);
+			cx += width(ch);
 		}
 	}
 
-	public static int width(String s) { return font().width(s); }
+	/** Draws text in a specific font, whatever the current one is (font pickers). */
+	public static void drawIn(GuiGraphics g, UiFont f, String s, int x, int y, int color, boolean shadow) {
+		if (s == null || s.isEmpty()) return;
+		if (f.isDefault()) g.drawString(font(), s, x, y, color, shadow);
+		else g.drawString(font(), FormattedCharSequence.forward(s, f.style()), x, y, color, shadow);
+	}
+
+	public static int widthIn(UiFont f, String s) {
+		if (s == null) return 0;
+		return f.isDefault() ? font().width(s) : font().width(FormattedCharSequence.forward(s, f.style()));
+	}
+
+	public static int width(String s) {
+		if (s == null) return 0;
+		UiFont f = currentFont();
+		return f.isDefault() ? font().width(s) : font().width(FormattedCharSequence.forward(s, f.style()));
+	}
 
 	/** Shortens text with "..." so it fits in maxWidth pixels. */
 	public static String ellipsize(String s, int maxWidth) {
 		if (maxWidth <= 0) return "";
-		Font f = font();
-		if (f.width(s) <= maxWidth) return s;
+		if (width(s) <= maxWidth) return s;
 		String dots = "...";
-		int dotsW = f.width(dots);
+		int dotsW = width(dots);
 		int end = s.length();
-		while (end > 0 && f.width(s.substring(0, end)) + dotsW > maxWidth) end--;
+		while (end > 0 && width(s.substring(0, end)) + dotsW > maxWidth) end--;
 		return s.substring(0, end).stripTrailing() + dots;
 	}
 
